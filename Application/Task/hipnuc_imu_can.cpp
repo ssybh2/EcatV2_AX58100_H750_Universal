@@ -10,6 +10,38 @@ extern "C" {
 }
 
 namespace aim::ecat::task::hipnuc_imu {
+    namespace {
+        constexpr size_t MAX_HIPNUC_IMUS = 8;
+
+        struct ImuAssemblyState {
+            const HIPNUC_IMU_CAN *owner{};
+            uint8_t pending_buf[21]{};
+            uint8_t stage{};
+            uint32_t complete_samples{};
+            uint32_t incomplete_samples{};
+            uint32_t last_complete_tick{};
+        };
+
+        ImuAssemblyState imu_states[MAX_HIPNUC_IMUS]{};
+
+        ImuAssemblyState *get_assembly_state(const HIPNUC_IMU_CAN *owner) {
+            for (auto &state: imu_states) {
+                if (state.owner == owner) {
+                    return &state;
+                }
+            }
+
+            for (auto &state: imu_states) {
+                if (state.owner == nullptr) {
+                    state.owner = owner;
+                    return &state;
+                }
+            }
+
+            return nullptr;
+        }
+    }
+
     HIPNUC_IMU_CAN::HIPNUC_IMU_CAN(buffer::Buffer *buffer) : CanRunnable(false, TaskType::HIPNUC_IMU_CAN) {
         init_peripheral(peripheral::Type::PERIPHERAL_CAN_1M);
         can_id_type_ = FDCAN_STANDARD_ID;
@@ -30,6 +62,9 @@ namespace aim::ecat::task::hipnuc_imu {
         packet1_id_ = buffer->read_uint32(buffer::EndianType::LITTLE);
         packet2_id_ = buffer->read_uint32(buffer::EndianType::LITTLE);
         packet3_id_ = buffer->read_uint32(buffer::EndianType::LITTLE);
+
+        /* Reserve one fixed assembly slot for this IMU task. */
+        get_assembly_state(this);
     }
 
     void HIPNUC_IMU_CAN::can_recv(FDCAN_RxHeaderTypeDef *rx_header, uint8_t *rx_data) {
@@ -39,18 +74,45 @@ namespace aim::ecat::task::hipnuc_imu {
             return;
         }
 
-        uint8_t current_buf[21] = {};
-        buf_.read(current_buf, 21);
-
-        if (packet1_id_ == rx_header->Identifier) {
-            memcpy(current_buf, rx_data, 8);
-        } else if (packet2_id_ == rx_header->Identifier) {
-            memcpy(current_buf + 8, rx_data, 8);
-        } else if (packet3_id_ == rx_header->Identifier) { // NOLINT
-            memcpy(current_buf + 8 + 8, rx_data, 5);
+        ImuAssemblyState *state = get_assembly_state(this);
+        if (state == nullptr) {
+            return;
         }
 
-        buf_.write(current_buf, 21);
+        if (packet1_id_ == rx_header->Identifier) {
+            /* A new packet1 starts a new sample. If the previous sample was
+             * incomplete, count it and discard the partial data. */
+            if (state->stage != 0U) {
+                state->incomplete_samples++;
+            }
+            memcpy(state->pending_buf, rx_data, 8);
+            state->stage = 1U;
+            return;
+        }
+
+        if (packet2_id_ == rx_header->Identifier) {
+            if (state->stage != 1U) {
+                state->incomplete_samples++;
+                state->stage = 0U;
+                return;
+            }
+            memcpy(state->pending_buf + 8, rx_data, 8);
+            state->stage = 2U;
+            return;
+        }
+
+        /* packet3: only commit after packet1 -> packet2 -> packet3 arrived. */
+        if (state->stage != 2U) {
+            state->incomplete_samples++;
+            state->stage = 0U;
+            return;
+        }
+
+        memcpy(state->pending_buf + 16, rx_data, 5);
+        buf_.write(state->pending_buf, 21);
+        state->complete_samples++;
+        state->last_complete_tick = HAL_GetTick();
+        state->stage = 0U;
     }
 
     void HIPNUC_IMU_CAN::write_to_master(buffer::Buffer *slave_to_master_buf) {
