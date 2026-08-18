@@ -27,6 +27,7 @@ namespace aim::io::buffer {
     public:
         explicit Buffer(void *buf, const int buf_length) : buf_(buf), index_(0), buf_length_(buf_length) {
             configASSERT(buf != nullptr);
+            configASSERT(buf_length > 0);
         }
 
         ~Buffer() = default;
@@ -110,20 +111,36 @@ namespace aim::io::buffer {
         }
 
         void read(uint8_t *dst, const int length) {
+            if (!is_index_range_valid(length)) {
+                configASSERT(false);
+                return;
+            }
             memcpy(dst, get_buf_pointer<uint8_t>() + index_, length);
             index_ += length;
         }
 
         void write(const uint8_t *src, const int length) {
+            if (!is_index_range_valid(length)) {
+                configASSERT(false);
+                return;
+            }
             memcpy(get_buf_pointer<uint8_t>() + index_, src, length);
             index_ += length;
         }
 
         void raw_read(uint8_t *dst, const int length) const {
+            if (length < 0 || length > buf_length_) {
+                configASSERT(false);
+                return;
+            }
             memcpy(dst, get_buf_pointer<uint8_t>(), length);
         }
 
         void raw_write(const uint8_t *src, const int length) const {
+            if (length < 0 || length > buf_length_) {
+                configASSERT(false);
+                return;
+            }
             memcpy(get_buf_pointer<uint8_t>(), src, length);
         }
 
@@ -137,7 +154,11 @@ namespace aim::io::buffer {
         }
 
         void skip(const int length) {
-            this->index_ += length;
+            if (!is_index_range_valid(length)) {
+                configASSERT(false);
+                return;
+            }
+            index_ += length;
         }
 
         template<typename T>
@@ -145,7 +166,19 @@ namespace aim::io::buffer {
             return static_cast<T *>(buf_);
         }
 
+        [[nodiscard]] int get_length() const {
+            return buf_length_;
+        }
+
+        [[nodiscard]] int get_index() const {
+            return index_;
+        }
+
     private:
+        [[nodiscard]] bool is_index_range_valid(const int length) const {
+            return length >= 0 && index_ >= 0 && index_ <= buf_length_ && length <= (buf_length_ - index_);
+        }
+
         void *buf_;
         int index_;
         int buf_length_;
