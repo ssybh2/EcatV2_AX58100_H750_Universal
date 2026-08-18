@@ -4,6 +4,7 @@
 #include "buffer_utils.hpp"
 #include "peripheral_utils.hpp"
 #include "task_defs.hpp"
+#include "hipnuc_imu_diag.hpp"
 
 extern "C" {
 #include "fdcan.h"
@@ -42,6 +43,17 @@ namespace aim::ecat::task::hipnuc_imu {
         }
     }
 
+    void get_diag_snapshot(HipnucImuDiagSnapshot *snapshot) {
+        if (snapshot == nullptr) {
+            return;
+        }
+
+        for (uint8_t i = 0; i < HIPNUC_DIAG_IMU_COUNT; ++i) {
+            snapshot->sample_seq[i] = static_cast<uint16_t>(imu_states[i].complete_samples & 0xFFFFU);
+            snapshot->incomplete_samples[i] = static_cast<uint16_t>(imu_states[i].incomplete_samples & 0xFFFFU);
+        }
+    }
+
     HIPNUC_IMU_CAN::HIPNUC_IMU_CAN(buffer::Buffer *buffer) : CanRunnable(false, TaskType::HIPNUC_IMU_CAN) {
         init_peripheral(peripheral::Type::PERIPHERAL_CAN_1M);
         can_id_type_ = FDCAN_STANDARD_ID;
@@ -56,6 +68,8 @@ namespace aim::ecat::task::hipnuc_imu {
                 break;
             }
             default: {
+                can_inst_ = nullptr;
+                break;
             }
         }
 
@@ -68,6 +82,10 @@ namespace aim::ecat::task::hipnuc_imu {
     }
 
     void HIPNUC_IMU_CAN::can_recv(FDCAN_RxHeaderTypeDef *rx_header, uint8_t *rx_data) {
+        if (can_inst_ == nullptr || rx_header == nullptr || rx_data == nullptr) {
+            return;
+        }
+
         if (rx_header->Identifier != packet1_id_
             && rx_header->Identifier != packet2_id_
             && rx_header->Identifier != packet3_id_) {
