@@ -24,6 +24,16 @@ extern osMutexId I2C3InitMutexHandle;
 }
 
 namespace aim::hardware::peripheral {
+    constexpr uint32_t CAN1_RX_NOTIFICATIONS =
+        FDCAN_IT_RX_FIFO0_NEW_MESSAGE |
+        FDCAN_IT_RX_FIFO0_FULL |
+        FDCAN_IT_RX_FIFO0_MESSAGE_LOST;
+
+    constexpr uint32_t CAN2_RX_NOTIFICATIONS =
+        FDCAN_IT_RX_FIFO1_NEW_MESSAGE |
+        FDCAN_IT_RX_FIFO1_FULL |
+        FDCAN_IT_RX_FIFO1_MESSAGE_LOST;
+
     void init_can_peripheral(void (*can1_init_func)(), void (*can2_init_func)()) {
         FDCAN_FilterTypeDef can_filter;
 
@@ -38,7 +48,7 @@ namespace aim::hardware::peripheral {
         HAL_FDCAN_ConfigFilter(&hfdcan1, &can_filter);
         HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
                                      FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
-        HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
+        HAL_FDCAN_ActivateNotification(&hfdcan1, CAN1_RX_NOTIFICATIONS, 0);
         HAL_FDCAN_Start(&hfdcan1);
 
         can2_init_func();
@@ -60,16 +70,16 @@ namespace aim::hardware::peripheral {
 
         HAL_FDCAN_ConfigGlobalFilter(&hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO1, FDCAN_ACCEPT_IN_RX_FIFO1,
                                      FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
-        HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, FDCAN_INTERRUPT_LINE1);
-        HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
+        HAL_FDCAN_ConfigInterruptLines(&hfdcan2, CAN2_RX_NOTIFICATIONS, FDCAN_INTERRUPT_LINE1);
+        HAL_FDCAN_ActivateNotification(&hfdcan2, CAN2_RX_NOTIFICATIONS, 0);
         HAL_FDCAN_Start(&hfdcan2);
     }
 
     void deinit_can_peripheral() {
-        HAL_FDCAN_DeactivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE);
+        HAL_FDCAN_DeactivateNotification(&hfdcan1, CAN1_RX_NOTIFICATIONS);
         HAL_FDCAN_DeInit(&hfdcan1);
 
-        HAL_FDCAN_DeactivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE);
+        HAL_FDCAN_DeactivateNotification(&hfdcan2, CAN2_RX_NOTIFICATIONS);
         HAL_FDCAN_DeInit(&hfdcan2);
     }
 
