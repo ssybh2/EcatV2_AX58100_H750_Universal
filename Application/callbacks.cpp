@@ -4,23 +4,40 @@
 #include "peripheral_utils.hpp"
 #include "task_manager.hpp"
 #include "c_task_warpper.h"
+#include "can_diagnostics.hpp"
+
+#include <atomic>
 
 using namespace aim::ecat::task;
 using namespace aim::hardware;
 
-/*
- * CAN receive diagnostics.
- * These are intentionally simple volatile counters so they can be inspected
- * directly in CubeIDE while validating multi-IMU traffic.
- */
-volatile uint32_t can1_rx_frame_count = 0;
-volatile uint32_t can2_rx_frame_count = 0;
-volatile uint32_t can1_rx_fifo_full_count = 0;
-volatile uint32_t can2_rx_fifo_full_count = 0;
-volatile uint32_t can1_rx_fifo_lost_count = 0;
-volatile uint32_t can2_rx_fifo_lost_count = 0;
-volatile uint32_t can1_rx_read_error_count = 0;
-volatile uint32_t can2_rx_read_error_count = 0;
+namespace {
+    std::atomic<uint32_t> can1_rx_frame_count{0};
+    std::atomic<uint32_t> can2_rx_frame_count{0};
+    std::atomic<uint32_t> can1_rx_fifo_full_count{0};
+    std::atomic<uint32_t> can2_rx_fifo_full_count{0};
+    std::atomic<uint32_t> can1_rx_fifo_lost_count{0};
+    std::atomic<uint32_t> can2_rx_fifo_lost_count{0};
+    std::atomic<uint32_t> can1_rx_read_error_count{0};
+    std::atomic<uint32_t> can2_rx_read_error_count{0};
+}
+
+namespace aim::ecat::diagnostics {
+    void get_can_rx_diagnostics(CanRxDiagnostics *snapshot) {
+        if (snapshot == nullptr) {
+            return;
+        }
+
+        snapshot->can1_rx_frame_count = can1_rx_frame_count.load(std::memory_order_relaxed);
+        snapshot->can2_rx_frame_count = can2_rx_frame_count.load(std::memory_order_relaxed);
+        snapshot->can1_rx_fifo_full_count = can1_rx_fifo_full_count.load(std::memory_order_relaxed);
+        snapshot->can2_rx_fifo_full_count = can2_rx_fifo_full_count.load(std::memory_order_relaxed);
+        snapshot->can1_rx_fifo_lost_count = can1_rx_fifo_lost_count.load(std::memory_order_relaxed);
+        snapshot->can2_rx_fifo_lost_count = can2_rx_fifo_lost_count.load(std::memory_order_relaxed);
+        snapshot->can1_rx_read_error_count = can1_rx_read_error_count.load(std::memory_order_relaxed);
+        snapshot->can2_rx_read_error_count = can2_rx_read_error_count.load(std::memory_order_relaxed);
+    }
+}
 
 // ReSharper disable once CppParameterMayBeConstPtrOrRef
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
@@ -142,14 +159,19 @@ void process_can_data(const FDCAN_HandleTypeDef *hfdcan, FDCAN_RxHeaderTypeDef *
         if (!conf->is_can_task.get()) {
             continue;
         }
-        if (hfdcan->Instance != static_cast<CanRunnable *>(conf->runnable.get())->can_inst_->Instance) { // NOLINT
+
+        auto *can_task = static_cast<CanRunnable *>(conf->runnable.get()); // NOLINT
+        if (can_task->can_inst_ == nullptr) {
             continue;
         }
-        if (rx_header->IdType != static_cast<CanRunnable *>(conf->runnable.get())->can_id_type_) { // NOLINT
+        if (hfdcan->Instance != can_task->can_inst_->Instance) {
+            continue;
+        }
+        if (rx_header->IdType != can_task->can_id_type_) {
             continue;
         }
 
-        static_cast<CanRunnable *>(conf->runnable.get())->can_recv(rx_header, rx_data); // NOLINT
+        can_task->can_recv(rx_header, rx_data);
     }
 }
 
@@ -159,10 +181,10 @@ void process_can_data(const FDCAN_HandleTypeDef *hfdcan, FDCAN_RxHeaderTypeDef *
  */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL) {
-        can1_rx_fifo_full_count++;
+        can1_rx_fifo_full_count.fetch_add(1, std::memory_order_relaxed);
     }
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_MESSAGE_LOST) {
-        can1_rx_fifo_lost_count++;
+        can1_rx_fifo_lost_count.fetch_add(1, std::memory_order_relaxed);
     }
 
     FDCAN_RxHeaderTypeDef rx_header;
@@ -170,20 +192,20 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
     while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U) {
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) {
-            can1_rx_read_error_count++;
+            can1_rx_read_error_count.fetch_add(1, std::memory_order_relaxed);
             break;
         }
-        can1_rx_frame_count++;
+        can1_rx_frame_count.fetch_add(1, std::memory_order_relaxed);
         process_can_data(hfdcan, &rx_header, rx_data);
     }
 }
 
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL) {
-        can2_rx_fifo_full_count++;
+        can2_rx_fifo_full_count.fetch_add(1, std::memory_order_relaxed);
     }
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_MESSAGE_LOST) {
-        can2_rx_fifo_lost_count++;
+        can2_rx_fifo_lost_count.fetch_add(1, std::memory_order_relaxed);
     }
 
     FDCAN_RxHeaderTypeDef rx_header;
@@ -191,10 +213,10 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 
     while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0U) {
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data) != HAL_OK) {
-            can2_rx_read_error_count++;
+            can2_rx_read_error_count.fetch_add(1, std::memory_order_relaxed);
             break;
         }
-        can2_rx_frame_count++;
+        can2_rx_frame_count.fetch_add(1, std::memory_order_relaxed);
         process_can_data(hfdcan, &rx_header, rx_data);
     }
 }
