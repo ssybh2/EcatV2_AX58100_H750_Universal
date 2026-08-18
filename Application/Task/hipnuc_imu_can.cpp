@@ -18,9 +18,9 @@ namespace aim::ecat::task::hipnuc_imu {
             const HIPNUC_IMU_CAN *owner{};
             uint8_t pending_buf[21]{};
             uint8_t stage{};
-            uint32_t complete_samples{};
-            uint32_t incomplete_samples{};
-            uint32_t last_complete_tick{};
+            ThreadSafeCounter complete_samples{};
+            ThreadSafeCounter incomplete_samples{};
+            ThreadSafeTimestamp last_complete_tick{};
         };
 
         ImuAssemblyState imu_states[MAX_HIPNUC_IMUS]{};
@@ -49,8 +49,8 @@ namespace aim::ecat::task::hipnuc_imu {
         }
 
         for (uint8_t i = 0; i < HIPNUC_DIAG_IMU_COUNT; ++i) {
-            snapshot->sample_seq[i] = static_cast<uint16_t>(imu_states[i].complete_samples & 0xFFFFU);
-            snapshot->incomplete_samples[i] = static_cast<uint16_t>(imu_states[i].incomplete_samples & 0xFFFFU);
+            snapshot->sample_seq[i] = static_cast<uint16_t>(imu_states[i].complete_samples.get() & 0xFFFFU);
+            snapshot->incomplete_samples[i] = static_cast<uint16_t>(imu_states[i].incomplete_samples.get() & 0xFFFFU);
         }
     }
 
@@ -101,7 +101,7 @@ namespace aim::ecat::task::hipnuc_imu {
             /* A new packet1 starts a new sample. If the previous sample was
              * incomplete, count it and discard the partial data. */
             if (state->stage != 0U) {
-                state->incomplete_samples++;
+                state->incomplete_samples.increment();
             }
             memcpy(state->pending_buf, rx_data, 8);
             state->stage = 1U;
@@ -110,7 +110,7 @@ namespace aim::ecat::task::hipnuc_imu {
 
         if (packet2_id_ == rx_header->Identifier) {
             if (state->stage != 1U) {
-                state->incomplete_samples++;
+                state->incomplete_samples.increment();
                 state->stage = 0U;
                 return;
             }
@@ -121,15 +121,15 @@ namespace aim::ecat::task::hipnuc_imu {
 
         /* packet3: only commit after packet1 -> packet2 -> packet3 arrived. */
         if (state->stage != 2U) {
-            state->incomplete_samples++;
+            state->incomplete_samples.increment();
             state->stage = 0U;
             return;
         }
 
         memcpy(state->pending_buf + 16, rx_data, 5);
         buf_.write(state->pending_buf, 21);
-        state->complete_samples++;
-        state->last_complete_tick = HAL_GetTick();
+        state->complete_samples.increment();
+        state->last_complete_tick.set_current();
         state->stage = 0U;
     }
 
