@@ -58,6 +58,9 @@ esc_cfg_t config = {
 namespace aim::ecat::application {
     using namespace io;
 
+    constexpr uint16_t MASTER_TO_SLAVE_PDO_SIZE = 80;
+    constexpr uint16_t SLAVE_TO_MASTER_PDO_SIZE = 160;
+
     uint16_t arg_recv_idx = 0;
     ThreadSafeFlag is_task_loaded{};
     ThreadSafeFlag is_task_ready_to_load{};
@@ -89,8 +92,8 @@ namespace aim::ecat::application {
         is_task_ready_to_load.clear();
         is_slave_ready.clear();
 
-        memset(Obj.master2slave, 0, 80);
-        memset(Obj.slave2master, 0, 80);
+        memset(Obj.master2slave, 0, MASTER_TO_SLAVE_PDO_SIZE);
+        memset(Obj.slave2master, 0, SLAVE_TO_MASTER_PDO_SIZE);
         Obj.sdo_len = 0;
         Obj.master_status = MASTER_UNKNOWN;
         Obj.slave_status = SLAVE_INITIALIZING;
@@ -130,7 +133,7 @@ namespace aim::ecat::application {
     void cb_set_outputs_impl() {
         buffer::get_buffer(buffer::Type::ECAT_MASTER_TO_SLAVE)->reset();
         buffer::get_buffer(buffer::Type::ECAT_MASTER_TO_SLAVE)->raw_write(
-            reinterpret_cast<uint8_t *>(Obj.master2slave), 80);
+            reinterpret_cast<uint8_t *>(Obj.master2slave), MASTER_TO_SLAVE_PDO_SIZE);
 
         // no any packet received yet
         if (Obj.master_status == MASTER_UNKNOWN) {
@@ -214,7 +217,7 @@ namespace aim::ecat::application {
         }
 
         buffer::get_buffer(buffer::Type::ECAT_SLAVE_TO_MASTER)->raw_read(
-            reinterpret_cast<uint8_t *>(Obj.slave2master), 80);
+            reinterpret_cast<uint8_t *>(Obj.slave2master), SLAVE_TO_MASTER_PDO_SIZE);
     }
 
     [[noreturn]] void soes_application_impl() {
