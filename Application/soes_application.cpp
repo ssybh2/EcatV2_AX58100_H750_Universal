@@ -7,6 +7,8 @@
 #include "soes_application.hpp"
 #include "utypes.h"
 #include "task_manager.hpp"
+#include "Task/hipnuc_imu_diag.hpp"
+#include "can_diagnostics.hpp"
 
 extern "C" {
 #include "ecat_slv.h"
@@ -60,6 +62,11 @@ namespace aim::ecat::application {
 
     constexpr uint16_t MASTER_TO_SLAVE_PDO_SIZE = 80;
     constexpr uint16_t SLAVE_TO_MASTER_PDO_SIZE = 160;
+    constexpr uint16_t SIX_IMU_DATA_SIZE = 6 * 21;
+    constexpr uint16_t SIX_IMU_DIAG_SIZE = SLAVE_TO_MASTER_PDO_SIZE - SIX_IMU_DATA_SIZE;
+
+    static_assert(SIX_IMU_DATA_SIZE == 126);
+    static_assert(SIX_IMU_DIAG_SIZE == 34);
 
     uint16_t arg_recv_idx = 0;
     ThreadSafeFlag is_task_loaded{};
@@ -84,6 +91,54 @@ namespace aim::ecat::application {
 
     ThreadSafeFlag *get_is_slave_ready() {
         return &is_slave_ready;
+    }
+
+    void append_6imu_diagnostics(buffer::Buffer *out) {
+        if (out == nullptr) {
+            return;
+        }
+
+        /* ProductCode 0x05 is intentionally a fixed six-IMU layout.
+         * The first 126 bytes must be the six 21-byte IMU payloads. */
+        if (out->get_index() > SIX_IMU_DATA_SIZE) {
+            configASSERT(false);
+            return;
+        }
+
+        if (out->get_index() < SIX_IMU_DATA_SIZE) {
+            out->skip(SIX_IMU_DATA_SIZE - out->get_index());
+        }
+
+        task::hipnuc_imu::HipnucImuDiagSnapshot imu_diag{};
+        task::hipnuc_imu::get_diag_snapshot(&imu_diag);
+
+        /* 126..137: six uint16 sample sequence counters. */
+        for (uint8_t i = 0; i < task::hipnuc_imu::HIPNUC_DIAG_IMU_COUNT; ++i) {
+            out->write_uint16(buffer::EndianType::LITTLE, imu_diag.sample_seq[i]);
+        }
+
+        /* 138..149: six uint16 incomplete-sample counters. */
+        for (uint8_t i = 0; i < task::hipnuc_imu::HIPNUC_DIAG_IMU_COUNT; ++i) {
+            out->write_uint16(buffer::EndianType::LITTLE, imu_diag.incomplete_samples[i]);
+        }
+
+        /* 150..157: FIFO lost/full counters (low 16 bits). */
+        out->write_uint16(buffer::EndianType::LITTLE,
+                          static_cast<uint16_t>(can1_rx_fifo_lost_count & 0xFFFFU));
+        out->write_uint16(buffer::EndianType::LITTLE,
+                          static_cast<uint16_t>(can2_rx_fifo_lost_count & 0xFFFFU));
+        out->write_uint16(buffer::EndianType::LITTLE,
+                          static_cast<uint16_t>(can1_rx_fifo_full_count & 0xFFFFU));
+        out->write_uint16(buffer::EndianType::LITTLE,
+                          static_cast<uint16_t>(can2_rx_fifo_full_count & 0xFFFFU));
+
+        /* 158..159: low 8 bits of HAL FIFO read-error counters. */
+        out->write_uint8(buffer::EndianType::LITTLE,
+                         static_cast<uint8_t>(can1_rx_read_error_count & 0xFFU));
+        out->write_uint8(buffer::EndianType::LITTLE,
+                         static_cast<uint8_t>(can2_rx_read_error_count & 0xFFU));
+
+        configASSERT(out->get_index() == SLAVE_TO_MASTER_PDO_SIZE);
     }
 
     void init_soes_env() {
@@ -207,6 +262,9 @@ namespace aim::ecat::application {
             for (const std::shared_ptr<task::runnable_conf> &conf: *task::get_run_confs()) {
                 conf->runnable->write_to_master(buffer::get_buffer(buffer::Type::ECAT_SLAVE_TO_MASTER));
             }
+
+            append_6imu_diagnostics(buffer::get_buffer(buffer::Type::ECAT_SLAVE_TO_MASTER));
+
             // this flag is for round-trip latency calculation
             // master -> slave -> master
             Obj.slave_status = Obj.master_status;
