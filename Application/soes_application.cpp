@@ -112,6 +112,9 @@ namespace aim::ecat::application {
         task::hipnuc_imu::HipnucImuDiagSnapshot imu_diag{};
         task::hipnuc_imu::get_diag_snapshot(&imu_diag);
 
+        diagnostics::CanRxDiagnostics can_diag{};
+        diagnostics::get_can_rx_diagnostics(&can_diag);
+
         /* 126..137: six uint16 sample sequence counters. */
         for (uint8_t i = 0; i < task::hipnuc_imu::HIPNUC_DIAG_IMU_COUNT; ++i) {
             out->write_uint16(buffer::EndianType::LITTLE, imu_diag.sample_seq[i]);
@@ -124,19 +127,19 @@ namespace aim::ecat::application {
 
         /* 150..157: FIFO lost/full counters (low 16 bits). */
         out->write_uint16(buffer::EndianType::LITTLE,
-                          static_cast<uint16_t>(can1_rx_fifo_lost_count & 0xFFFFU));
+                          static_cast<uint16_t>(can_diag.can1_rx_fifo_lost_count & 0xFFFFU));
         out->write_uint16(buffer::EndianType::LITTLE,
-                          static_cast<uint16_t>(can2_rx_fifo_lost_count & 0xFFFFU));
+                          static_cast<uint16_t>(can_diag.can2_rx_fifo_lost_count & 0xFFFFU));
         out->write_uint16(buffer::EndianType::LITTLE,
-                          static_cast<uint16_t>(can1_rx_fifo_full_count & 0xFFFFU));
+                          static_cast<uint16_t>(can_diag.can1_rx_fifo_full_count & 0xFFFFU));
         out->write_uint16(buffer::EndianType::LITTLE,
-                          static_cast<uint16_t>(can2_rx_fifo_full_count & 0xFFFFU));
+                          static_cast<uint16_t>(can_diag.can2_rx_fifo_full_count & 0xFFFFU));
 
         /* 158..159: low 8 bits of HAL FIFO read-error counters. */
         out->write_uint8(buffer::EndianType::LITTLE,
-                         static_cast<uint8_t>(can1_rx_read_error_count & 0xFFU));
+                         static_cast<uint8_t>(can_diag.can1_rx_read_error_count & 0xFFU));
         out->write_uint8(buffer::EndianType::LITTLE,
-                         static_cast<uint8_t>(can2_rx_read_error_count & 0xFFU));
+                         static_cast<uint8_t>(can_diag.can2_rx_read_error_count & 0xFFU));
 
         configASSERT(out->get_index() == SLAVE_TO_MASTER_PDO_SIZE);
     }
