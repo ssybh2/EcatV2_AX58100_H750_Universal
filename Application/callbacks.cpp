@@ -3,6 +3,7 @@
 //
 #include "peripheral_utils.hpp"
 #include "task_manager.hpp"
+#include "soes_application.hpp"
 #include "c_task_warpper.h"
 #include "can_diagnostics.hpp"
 
@@ -155,6 +156,14 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
 }
 
 void process_can_data(const FDCAN_HandleTypeDef *hfdcan, FDCAN_RxHeaderTypeDef *rx_header, uint8_t rx_data[8]) {
+    /* CAN is started by the first CAN task constructor. During load_task(),
+     * run_confs is still being extended. Never iterate that vector until the
+     * task manager declares the complete list loaded. FIFO callbacks still
+     * drain hardware during this short startup window. */
+    if (!aim::ecat::application::get_is_task_loaded()->get()) {
+        return;
+    }
+
     for (const std::shared_ptr<runnable_conf> &conf: *get_run_confs()) {
         if (!conf->is_can_task.get()) {
             continue;
