@@ -1,5 +1,6 @@
 name: Build 6-IMU Slave Firmware
 
+# CI trigger after enabling Actions on this fork.
 on:
   push:
     branches:
