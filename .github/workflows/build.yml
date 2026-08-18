@@ -40,8 +40,22 @@ jobs:
           cmake --build ${{ github.workspace }}/build/Release \
             --target EcatV2_AX58100_H750_Universal
 
-      - name: Upload ELF artifact
+      - name: Export HEX and BIN
+        run: |
+          ELF="${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf"
+          arm-none-eabi-objcopy -O ihex "$ELF" "${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.hex"
+          arm-none-eabi-objcopy -O binary "$ELF" "${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.bin"
+          arm-none-eabi-size "$ELF"
+          ls -lh \
+            "${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf" \
+            "${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.hex" \
+            "${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.bin"
+
+      - name: Upload flashable firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: six-imu-slave-firmware-elf
-          path: ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf
+          name: six-imu-slave-firmware
+          path: |
+            ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf
+            ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.hex
+            ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.bin
