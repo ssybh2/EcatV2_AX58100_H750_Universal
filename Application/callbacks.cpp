@@ -8,6 +8,20 @@
 using namespace aim::ecat::task;
 using namespace aim::hardware;
 
+/*
+ * CAN receive diagnostics.
+ * These are intentionally simple volatile counters so they can be inspected
+ * directly in CubeIDE while validating multi-IMU traffic.
+ */
+volatile uint32_t can1_rx_frame_count = 0;
+volatile uint32_t can2_rx_frame_count = 0;
+volatile uint32_t can1_rx_fifo_full_count = 0;
+volatile uint32_t can2_rx_fifo_full_count = 0;
+volatile uint32_t can1_rx_fifo_lost_count = 0;
+volatile uint32_t can2_rx_fifo_lost_count = 0;
+volatile uint32_t can1_rx_read_error_count = 0;
+volatile uint32_t can2_rx_read_error_count = 0;
+
 // ReSharper disable once CppParameterMayBeConstPtrOrRef
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart->Instance == USART1) {
@@ -139,22 +153,50 @@ void process_can_data(const FDCAN_HandleTypeDef *hfdcan, FDCAN_RxHeaderTypeDef *
     }
 }
 
-// ReSharper disable once CppParameterMayBeConst
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t /* RxFifo0ITs */) {
+/*
+ * Drain the complete FIFO on every interrupt instead of consuming one frame.
+ * With three 500 Hz IMUs on one bus, several frames can arrive back-to-back.
+ */
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL) {
+        can1_rx_fifo_full_count++;
+    }
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_MESSAGE_LOST) {
+        can1_rx_fifo_lost_count++;
+    }
+
     FDCAN_RxHeaderTypeDef rx_header;
     uint8_t rx_data[8];
 
-    HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data);
-    process_can_data(hfdcan, &rx_header, rx_data);
+    while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U) {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) {
+            can1_rx_read_error_count++;
+            break;
+        }
+        can1_rx_frame_count++;
+        process_can_data(hfdcan, &rx_header, rx_data);
+    }
 }
 
-// ReSharper disable once CppParameterMayBeConst
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t /* RxFifo1ITs */) {
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL) {
+        can2_rx_fifo_full_count++;
+    }
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_MESSAGE_LOST) {
+        can2_rx_fifo_lost_count++;
+    }
+
     FDCAN_RxHeaderTypeDef rx_header;
     uint8_t rx_data[8];
 
-    HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data);
-    process_can_data(hfdcan, &rx_header, rx_data);
+    while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0U) {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data) != HAL_OK) {
+            can2_rx_read_error_count++;
+            break;
+        }
+        can2_rx_frame_count++;
+        process_can_data(hfdcan, &rx_header, rx_data);
+    }
 }
 
 // ReSharper disable once CppParameterMayBeConstPtrOrRef
