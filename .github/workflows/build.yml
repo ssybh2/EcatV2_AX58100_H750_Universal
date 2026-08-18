@@ -1,9 +1,10 @@
-name: Build Firmware
+name: Build 6-IMU Slave Firmware
 
 on:
   push:
-    branches: [ "main", "feature/6imu-large-pdo" ]
-  pull_request:
+    branches:
+      - "feature/6imu-large-pdo"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,6 +23,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi binutils-arm-none-eabi
 
+      - name: Apply and verify 6-IMU FDCAN settings
+        run: |
+          python3 tools/apply_6imu_fdcan_config.py
+
       - name: Configure CMake
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release \
@@ -37,5 +42,5 @@ jobs:
       - name: Upload ELF artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-elf
+          name: six-imu-slave-firmware-elf
           path: ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf
