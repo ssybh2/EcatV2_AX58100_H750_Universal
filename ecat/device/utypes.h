@@ -14,7 +14,7 @@ typedef struct
    /* Inputs */
 
    uint8_t slave_status;
-   uint64_t slave2master[20];
+   uint64_t slave2master[24];
 
    /* Outputs */
 

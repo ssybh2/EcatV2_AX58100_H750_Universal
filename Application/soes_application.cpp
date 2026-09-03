@@ -61,12 +61,16 @@ namespace aim::ecat::application {
     using namespace io;
 
     constexpr uint16_t MASTER_TO_SLAVE_PDO_SIZE = 80;
-    constexpr uint16_t SLAVE_TO_MASTER_PDO_SIZE = 160;
+    constexpr uint16_t SLAVE_TO_MASTER_PDO_SIZE = 192;
     constexpr uint16_t SIX_IMU_DATA_SIZE = 6 * 21;
-    constexpr uint16_t SIX_IMU_DIAG_SIZE = SLAVE_TO_MASTER_PDO_SIZE - SIX_IMU_DATA_SIZE;
+    constexpr uint16_t SIX_IMU_DIAG_SIZE = 34;
+    constexpr uint16_t SIX_IMU_REGION_SIZE = SIX_IMU_DATA_SIZE + SIX_IMU_DIAG_SIZE;
+    constexpr uint16_t DJI_RC_DATA_SIZE = 19;
 
     static_assert(SIX_IMU_DATA_SIZE == 126);
     static_assert(SIX_IMU_DIAG_SIZE == 34);
+    static_assert(SIX_IMU_REGION_SIZE == 160);
+    static_assert(SIX_IMU_REGION_SIZE + DJI_RC_DATA_SIZE <= SLAVE_TO_MASTER_PDO_SIZE);
 
     uint16_t arg_recv_idx = 0;
     ThreadSafeFlag is_task_loaded{};
@@ -98,8 +102,9 @@ namespace aim::ecat::application {
             return;
         }
 
-        /* ProductCode 0x05 is intentionally a fixed six-IMU layout.
-         * The first 126 bytes must be the six 21-byte IMU payloads. */
+        /* ProductCode 0x06 preserves the fixed six-IMU prefix.
+         * Bytes 0..125 are the six IMUs; bytes 126..159 are diagnostics.
+         * Later read tasks start at byte 160. */
         if (out->get_index() > SIX_IMU_DATA_SIZE) {
             configASSERT(false);
             return;
@@ -141,7 +146,7 @@ namespace aim::ecat::application {
         out->write_uint8(buffer::EndianType::LITTLE,
                          static_cast<uint8_t>(can_diag.can2_rx_read_error_count & 0xFFU));
 
-        configASSERT(out->get_index() == SLAVE_TO_MASTER_PDO_SIZE);
+        configASSERT(out->get_index() == SIX_IMU_REGION_SIZE);
     }
 
     void init_soes_env() {
@@ -262,11 +267,20 @@ namespace aim::ecat::application {
                 Obj.slave_status = SLAVE_READY;
             }
         } else {
+            auto *out = buffer::get_buffer(buffer::Type::ECAT_SLAVE_TO_MASTER);
+            bool six_imu_diag_inserted = false;
+
             for (const std::shared_ptr<task::runnable_conf> &conf: *task::get_run_confs()) {
-                conf->runnable->write_to_master(buffer::get_buffer(buffer::Type::ECAT_SLAVE_TO_MASTER));
+                conf->runnable->write_to_master(out);
+                if (!six_imu_diag_inserted && out->get_index() == SIX_IMU_DATA_SIZE) {
+                    append_6imu_diagnostics(out);
+                    six_imu_diag_inserted = true;
+                    configASSERT(out->get_index() == SIX_IMU_REGION_SIZE);
+                }
             }
 
-            append_6imu_diagnostics(buffer::get_buffer(buffer::Type::ECAT_SLAVE_TO_MASTER));
+            configASSERT(six_imu_diag_inserted);
+            configASSERT(out->get_index() <= SLAVE_TO_MASTER_PDO_SIZE);
 
             // this flag is for round-trip latency calculation
             // master -> slave -> master

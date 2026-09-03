@@ -60,6 +60,10 @@ static const char acName1A01_11[] = "s2m17";
 static const char acName1A01_12[] = "s2m18";
 static const char acName1A01_13[] = "s2m19";
 static const char acName1A01_14[] = "s2m20";
+static const char acName1A01_15[] = "s2m21";
+static const char acName1A01_16[] = "s2m22";
+static const char acName1A01_17[] = "s2m23";
+static const char acName1A01_18[] = "s2m24";
 static const char acName1C00[] = "Sync Manager Communication Type";
 static const char acName1C00_00[] = "Max SubIndex";
 static const char acName1C00_01[] = "Communications Type SM0";
@@ -111,6 +115,10 @@ static const char acName6001_11[] = "s2m17";
 static const char acName6001_12[] = "s2m18";
 static const char acName6001_13[] = "s2m19";
 static const char acName6001_14[] = "s2m20";
+static const char acName6001_15[] = "s2m21";
+static const char acName6001_16[] = "s2m22";
+static const char acName6001_17[] = "s2m23";
+static const char acName6001_18[] = "s2m24";
 static const char acName7000[] = "master_status";
 static const char acName7001[] = "master2slave";
 static const char acName7001_00[] = "Max SubIndex";
@@ -132,7 +140,7 @@ const _objd SDO1000[] =
 };
 const _objd SDO1008[] =
 {
-  {0x0, DTYPE_VISIBLE_STRING, 320, ATYPE_RO, acName1008, 0, "58100_H750_UniversalModule_6IMU_LargePDO"},
+  {0x0, DTYPE_VISIBLE_STRING, 320, ATYPE_RO, acName1008, 0, "58100_H750_UniversalModule_6IMU_RC_DSHOT"},
 };
 const _objd SDO1009[] =
 {
@@ -146,7 +154,7 @@ const _objd SDO1018[] =
 {
   {0x00, DTYPE_UNSIGNED8, 8, ATYPE_RO, acName1018_00, 4, NULL},
   {0x01, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1018_01, 0, NULL},
-  {0x02, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1018_02, 0x05, NULL},
+  {0x02, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1018_02, 0x06, NULL},
   {0x03, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1018_03, 0, NULL},
   {0x04, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1018_04, 0x00000000, &Obj.serial},
 };
@@ -176,7 +184,7 @@ const _objd SDO1A00[] =
 };
 const _objd SDO1A01[] =
 {
-  {0x00, DTYPE_UNSIGNED8, 8, ATYPE_RO, acName1A01_00, 20, NULL},
+  {0x00, DTYPE_UNSIGNED8, 8, ATYPE_RO, acName1A01_00, 24, NULL},
   {0x01, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_01, 0x60010140, NULL},
   {0x02, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_02, 0x60010240, NULL},
   {0x03, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_03, 0x60010340, NULL},
@@ -197,6 +205,10 @@ const _objd SDO1A01[] =
   {0x12, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_12, 0x60011240, NULL},
   {0x13, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_13, 0x60011340, NULL},
   {0x14, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_14, 0x60011440, NULL},
+  {0x15, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_15, 0x60011540, NULL},
+  {0x16, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_16, 0x60011640, NULL},
+  {0x17, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_17, 0x60011740, NULL},
+  {0x18, DTYPE_UNSIGNED32, 32, ATYPE_RO, acName1A01_18, 0x60011840, NULL},
 };
 const _objd SDO1C00[] =
 {
@@ -242,7 +254,7 @@ const _objd SDO6000[] =
 };
 const _objd SDO6001[] =
 {
-  {0x00, DTYPE_UNSIGNED8, 8, ATYPE_RO, acName6001_00, 20, NULL},
+  {0x00, DTYPE_UNSIGNED8, 8, ATYPE_RO, acName6001_00, 24, NULL},
   {0x01, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_01, 0, &Obj.slave2master[0]},
   {0x02, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_02, 0, &Obj.slave2master[1]},
   {0x03, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_03, 0, &Obj.slave2master[2]},
@@ -263,6 +275,10 @@ const _objd SDO6001[] =
   {0x12, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_12, 0, &Obj.slave2master[17]},
   {0x13, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_13, 0, &Obj.slave2master[18]},
   {0x14, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_14, 0, &Obj.slave2master[19]},
+  {0x15, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_15, 0, &Obj.slave2master[20]},
+  {0x16, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_16, 0, &Obj.slave2master[21]},
+  {0x17, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_17, 0, &Obj.slave2master[22]},
+  {0x18, DTYPE_UNSIGNED64, 64, ATYPE_RO | ATYPE_TXPDO, acName6001_18, 0, &Obj.slave2master[23]},
 };
 const _objd SDO7000[] =
 {
@@ -297,14 +313,14 @@ const _objectlist SDOobjects[] =
   {0x1600, OTYPE_RECORD, 1, 0, acName1600, SDO1600},
   {0x1601, OTYPE_RECORD, 10, 0, acName1601, SDO1601},
   {0x1A00, OTYPE_RECORD, 1, 0, acName1A00, SDO1A00},
-  {0x1A01, OTYPE_RECORD, 20, 0, acName1A01, SDO1A01},
+  {0x1A01, OTYPE_RECORD, 24, 0, acName1A01, SDO1A01},
   {0x1C00, OTYPE_ARRAY, 4, 0, acName1C00, SDO1C00},
   {0x1C12, OTYPE_ARRAY, 2, 0, acName1C12, SDO1C12},
   {0x1C13, OTYPE_ARRAY, 2, 0, acName1C13, SDO1C13},
   {0x1C32, OTYPE_RECORD, 5, 0, acName1C32, SDO1C32},
   {0x1C33, OTYPE_RECORD, 5, 0, acName1C33, SDO1C33},
   {0x6000, OTYPE_VAR, 0, 0, acName6000, SDO6000},
-  {0x6001, OTYPE_ARRAY, 20, 0, acName6001, SDO6001},
+  {0x6001, OTYPE_ARRAY, 24, 0, acName6001, SDO6001},
   {0x7000, OTYPE_VAR, 0, 0, acName7000, SDO7000},
   {0x7001, OTYPE_ARRAY, 10, 0, acName7001, SDO7001},
   {0x8000, OTYPE_VAR, 0, 0, acName8000, SDO8000},
