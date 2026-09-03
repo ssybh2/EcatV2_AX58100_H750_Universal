@@ -4,3 +4,6 @@
 /Core/Src/Backup/
 .DS_Store
 /.idea/
+.local_6imu_rc_dshot_backups/
+/ecat/device/eeprom_ProductCode_0x05*.bin
+/ecat/device/*readback*.bin

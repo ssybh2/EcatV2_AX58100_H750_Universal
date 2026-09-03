@@ -1,3 +1,12 @@
+<!-- ECAT_V006_CURRENT_PROFILE_BEGIN -->
+> ## Current validated profile: ProductCode 0x06
+>
+> 当前真机验证分支：`feature/6imu-rc-dshot-pdo-v006`。支持 **6 × HIPNUC IMU + DJI RC / DBUS + DShot**；application PDO 为 `80 B M→S / 192 B S→M`，实际 EtherCAT process data 为 `81 B Outputs / 193 B Inputs`。
+>
+> 详细布局、EEPROM 一字节 ProductCode 升级方式和真机验证结果见 [`README_V006_6IMU_RC_DSHOT.md`](README_V006_6IMU_RC_DSHOT.md)。旧 ProductCode 0x05 / 160 B 内容属于 legacy profile。
+
+<!-- ECAT_V006_CURRENT_PROFILE_END -->
+
 ## AIM EtherCAT - Custom Slave Control Board
 
 [![Build Firmware](https://github.com/AIMEtherCAT/EcatV2_AX58100_H750_Universal/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/AIMEtherCAT/EcatV2_AX58100_H750_Universal/actions/workflows/build.yml)
