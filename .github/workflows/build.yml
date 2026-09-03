@@ -1,10 +1,11 @@
-name: Build 6-IMU Slave Firmware
+name: Build ProductCode 0x06 Slave Firmware
 
 # CI trigger after enabling Actions on this fork.
 on:
   push:
     branches:
-      - "feature/6imu-large-pdo"
+      - "feature/6imu-rc-dshot-pdo-v006"
+      - "main"
   workflow_dispatch:
 
 jobs:
@@ -54,8 +55,9 @@ jobs:
       - name: Upload flashable firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: six-imu-slave-firmware
+          name: productcode-0x06-slave-firmware
           path: |
             ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf
             ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.hex
             ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.bin
+            ${{ github.workspace }}/ecat/device/eeprom_0x06_6imu_rc_dshot.bin
