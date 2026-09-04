@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - "feature/6imu-rc-dshot-pdo-v006"
+      - "fix/6imu-coherent-pdo-snapshot"
       - "main"
   workflow_dispatch:
 
@@ -15,6 +16,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Verify coherent 6-IMU PDO snapshot contract
+        run: |
+          python3 tests/test_6imu_coherent_pdo_snapshot_contract.py
 
       - name: Checkout SOES
         run: |
