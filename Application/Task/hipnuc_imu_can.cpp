@@ -6,6 +6,8 @@
 #include "task_defs.hpp"
 #include "hipnuc_imu_diag.hpp"
 
+#include <atomic>
+
 extern "C" {
 #include "fdcan.h"
 }
@@ -13,6 +15,8 @@ extern "C" {
 namespace aim::ecat::task::hipnuc_imu {
     namespace {
         constexpr size_t MAX_HIPNUC_IMUS = 8;
+        constexpr size_t HIPNUC_PAYLOAD_SIZE = 21;
+        constexpr size_t HIPNUC_COMMITTED_SNAPSHOT_SIZE = 23;
 
         struct ImuAssemblyState {
             const HIPNUC_IMU_CAN *owner{};
@@ -21,6 +25,19 @@ namespace aim::ecat::task::hipnuc_imu {
             ThreadSafeCounter complete_samples{};
             ThreadSafeCounter incomplete_samples{};
             ThreadSafeTimestamp last_complete_tick{};
+
+            /*
+             * The CAN IRQ commits payload + sequence as one immutable snapshot.
+             * EtherCAT reads only the published slot, so a packet3 IRQ cannot
+             * pair sample N payload with sample N+1 sequence diagnostics.
+             *
+             * snapshot_generation lets the reader detect the rare case where a
+             * second publication happens while its 23-byte memcpy is in flight.
+             */
+            uint8_t committed_snapshot[2][23]{};
+            std::atomic<uint8_t> active_snapshot{};
+            std::atomic<uint32_t> snapshot_generation{};
+            ThreadSafeValue<uint16_t> last_pdo_sample_seq{};
         };
 
         ImuAssemblyState imu_states[MAX_HIPNUC_IMUS]{};
@@ -41,6 +58,26 @@ namespace aim::ecat::task::hipnuc_imu {
 
             return nullptr;
         }
+
+        void read_committed_snapshot(const ImuAssemblyState *state, uint8_t current_snapshot[23]) {
+            if (state == nullptr || current_snapshot == nullptr) {
+                return;
+            }
+
+            while (true) {
+                const uint32_t generation_before = state->snapshot_generation.load(std::memory_order_acquire);
+                const uint8_t read_snapshot_idx = state->active_snapshot.load(std::memory_order_acquire) & 0x01U;
+
+                memcpy(current_snapshot,
+                       state->committed_snapshot[read_snapshot_idx],
+                       HIPNUC_COMMITTED_SNAPSHOT_SIZE);
+
+                const uint32_t generation_after = state->snapshot_generation.load(std::memory_order_acquire);
+                if (generation_before == generation_after) {
+                    return;
+                }
+            }
+        }
     }
 
     void get_diag_snapshot(HipnucImuDiagSnapshot *snapshot) {
@@ -49,7 +86,9 @@ namespace aim::ecat::task::hipnuc_imu {
         }
 
         for (uint8_t i = 0; i < HIPNUC_DIAG_IMU_COUNT; ++i) {
-            snapshot->sample_seq[i] = static_cast<uint16_t>(imu_states[i].complete_samples.get() & 0xFFFFU);
+            /* This is the sequence captured with the payload already copied
+             * into the current EtherCAT PDO, not the live CAN completion count. */
+            snapshot->sample_seq[i] = imu_states[i].last_pdo_sample_seq.get();
             snapshot->incomplete_samples[i] = static_cast<uint16_t>(imu_states[i].incomplete_samples.get() & 0xFFFFU);
         }
     }
@@ -127,15 +166,40 @@ namespace aim::ecat::task::hipnuc_imu {
         }
 
         memcpy(state->pending_buf + 16, rx_data, 5);
-        buf_.write(state->pending_buf, 21);
+
+        const uint16_t next_sample_seq = static_cast<uint16_t>((state->complete_samples.get() + 1U) & 0xFFFFU);
+        const uint8_t write_snapshot_idx =
+                (state->active_snapshot.load(std::memory_order_acquire) & 0x01U) == 0U ? 1U : 0U;
+
+        memcpy(state->committed_snapshot[write_snapshot_idx],
+               state->pending_buf,
+               HIPNUC_PAYLOAD_SIZE);
+        state->committed_snapshot[write_snapshot_idx][21] = static_cast<uint8_t>(next_sample_seq & 0xFFU);
+        state->committed_snapshot[write_snapshot_idx][22] = static_cast<uint8_t>((next_sample_seq >> 8U) & 0xFFU);
+
+        /* Publish only after all 23 bytes are complete. */
+        state->active_snapshot.store(write_snapshot_idx, std::memory_order_release);
+        state->snapshot_generation.fetch_add(1U, std::memory_order_release);
+
         state->complete_samples.increment();
         state->last_complete_tick.set_current();
         state->stage = 0U;
     }
 
     void HIPNUC_IMU_CAN::write_to_master(buffer::Buffer *slave_to_master_buf) {
-        uint8_t current_buf[21] = {};
-        buf_.read(current_buf, 21);
-        slave_to_master_buf->write(current_buf, 21);
+        uint8_t current_snapshot[23] = {};
+        ImuAssemblyState *state = get_assembly_state(this);
+
+        if (state != nullptr) {
+            read_committed_snapshot(state, current_snapshot);
+        }
+
+        slave_to_master_buf->write(current_snapshot, HIPNUC_PAYLOAD_SIZE);
+
+        if (state != nullptr) {
+            const uint16_t snapshot_seq = static_cast<uint16_t>(current_snapshot[21]) |
+                                          static_cast<uint16_t>(current_snapshot[22]) << 8U;
+            state->last_pdo_sample_seq.set(snapshot_seq);
+        }
     }
 }
