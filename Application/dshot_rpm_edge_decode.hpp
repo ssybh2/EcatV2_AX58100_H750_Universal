@@ -15,12 +15,14 @@ namespace aim::ecat::dshot_rpm {
 
     // First falling edge starts bit 0 at logic level 0; later edges toggle
     // the level. Timer timestamps use unsigned subtraction, permitting a
-    // wrapping TIM2/TIM3 counter provided a reply spans less than 2^31 ticks.
+    // wrapping counter provided a reply spans fewer than half its modulus.
+    // Specify timer_mask=0xFFFF for TIM3's 16-bit free-running counter.
     // ticks_per_bit = capture_timer_hz / 750000 for DShot600 replies.
     inline bool decode_edge_timestamps(const uint32_t *edges,
                                        const std::size_t edge_count,
                                        const uint32_t ticks_per_bit,
-                                       uint16_t &payload) {
+                                       uint16_t &payload,
+                                       const uint32_t timer_mask = 0xFFFFFFFFUL) {
         if (edges == nullptr || edge_count == 0 ||
             edge_count > MAX_REPLY_EDGES || ticks_per_bit < 8) {
             return false;
@@ -33,7 +35,7 @@ namespace aim::ecat::dshot_rpm {
 
         // Transition jitter should be much smaller than half a bit.
         for (std::size_t index = 1; index < edge_count; ++index) {
-            const uint32_t offset = edges[index] - start;
+            const uint32_t offset = (edges[index] - start) & timer_mask;
             if (offset <= previous_offset + ticks_per_bit / 2) {
                 return false; // unordered timestamps, bouncing or a glitch
             }
@@ -43,7 +45,7 @@ namespace aim::ecat::dshot_rpm {
         for (uint32_t bit = 0; bit < REPLY_BITS; ++bit) {
             const uint32_t center = bit * ticks_per_bit + ticks_per_bit / 2;
             while (next_edge < edge_count &&
-                   static_cast<uint32_t>(edges[next_edge] - start) <= center) {
+                   ((edges[next_edge] - start) & timer_mask) <= center) {
                 level ^= 1U;
                 ++next_edge;
             }
@@ -53,7 +55,7 @@ namespace aim::ecat::dshot_rpm {
         // end of the 21-bit symbol. Reject extra edges inside the frame.
         if (next_edge < edge_count) {
             if (edge_count != next_edge + 1 ||
-                static_cast<uint32_t>(edges[next_edge] - start) <
+                ((edges[next_edge] - start) & timer_mask) <
                     REPLY_BITS * ticks_per_bit - ticks_per_bit / 4) {
                 return false;
             }
