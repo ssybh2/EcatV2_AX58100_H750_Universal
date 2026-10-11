@@ -1,0 +1,20 @@
+name: DShot RPM codec unit test
+on:
+  push:
+    branches:
+      - feature/dshot600-esc-rpm-telemetry
+  pull_request:
+    paths:
+      - 'Application/dshot_rpm_protocol.hpp'
+      - 'tests/dshot_rpm_codec_test.cpp'
+      - '.github/workflows/dshot-rpm-host-test.yml'
+jobs:
+  host-codec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and test exhaustive bidirectional DShot eRPM codec
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -IApplication \
+            tests/dshot_rpm_codec_test.cpp -o /tmp/dshot_rpm_test
+          /tmp/dshot_rpm_test
