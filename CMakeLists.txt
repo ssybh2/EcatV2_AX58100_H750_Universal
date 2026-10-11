@@ -60,10 +60,16 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         ${PROJECT_INCLUDES}
 )
 
+option(AIM_DSHOT_RPM_LAB_RX \"Unsafe experimental DShot600 single-channel hardware RX (bench only)\" OFF)
+
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user defined symbols
 )
+if (AIM_DSHOT_RPM_LAB_RX)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE AIM_DSHOT_RPM_LAB_RX=1)
+    message(WARNING \"UNVERIFIED bDShot TIM2 lab receiver ENABLED: do not fly\")
+endif ()
 
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
