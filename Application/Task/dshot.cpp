@@ -135,9 +135,9 @@ namespace aim::ecat::task::pwm {
         }
 #endif
         __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
-        __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
-        __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
-        __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
+        __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC2);
+        __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC3);
+        __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC4);
 
         tim_inst_->hdma[TIM_DMA_ID_CC1]->XferCpltCallback = nullptr;
         tim_inst_->hdma[TIM_DMA_ID_CC2]->XferCpltCallback = nullptr;
