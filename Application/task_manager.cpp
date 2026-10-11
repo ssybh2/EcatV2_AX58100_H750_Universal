@@ -97,6 +97,14 @@ namespace aim::ecat::task {
                     );
                     break;
                 }
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                case static_cast<uint8_t>(TaskType::DSHOT300_BIDIR): {
+                    conf->runnable = std::make_unique<pwm::DSHOT600>(
+                        buffer::get_buffer(buffer::Type::ECAT_ARGS), TaskType::DSHOT300_BIDIR
+                    );
+                    break;
+                }
+#endif
                 case static_cast<uint8_t>(TaskType::DSHOT_RPM): {
                     conf->runnable = std::make_unique<pwm::DSHOT_RPM>(
                         buffer::get_buffer(buffer::Type::ECAT_ARGS)
