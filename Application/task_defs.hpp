@@ -41,7 +41,8 @@ namespace aim::ecat::task {
         VT13_RC = 14,
         DD_MOTOR = 15,
         DSHOT_RPM = 16,  // read-only PDO, separate from legacy DSHOT TX
-        DSHOT300_BIDIR = 17  // opt-in bench-only, original DSHOT=4 remains unchanged
+        DSHOT300_BIDIR = 17,  // opt-in bench-only, original DSHOT=4 remains unchanged
+        DSHOT_RPM_DIAG = 18   // opt-in read-only 40-byte receiver diagnostics
     };
 
     enum class ConnectionLostAction : uint8_t {
@@ -805,6 +806,17 @@ namespace aim::ecat::task {
         private:
             uint8_t dshot_id_{0};
         };
+
+#ifdef AIM_DSHOT_RPM_LAB_RX
+        // Opt-in diagnostic PDO, separate from type 16 RPM's 9-byte layout.
+        class DSHOT_RPM_DIAG final : public CustomRunnable {
+        public:
+            explicit DSHOT_RPM_DIAG(buffer::Buffer *buffer);
+            void write_to_master(buffer::Buffer *slave_to_master_buf) override;
+        private:
+            uint8_t dshot_id_{0};
+        };
+#endif
 
         class DSHOT600 final : public CustomRunnable {
         public:
