@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/dshot600-esc-rpm-telemetry
+      - feature/dshot600-rpm-rx-prototype
   pull_request:
     paths:
       - 'Application/dshot_rpm_protocol.hpp'
@@ -18,3 +19,6 @@ jobs:
           g++ -std=c++17 -O2 -Wall -Wextra -Werror -IApplication \
             tests/dshot_rpm_codec_test.cpp -o /tmp/dshot_rpm_test
           /tmp/dshot_rpm_test
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -IApplication \
+            tests/dshot_rpm_edge_decode_test.cpp -o /tmp/dshot_rpm_edge_test
+          /tmp/dshot_rpm_edge_test
