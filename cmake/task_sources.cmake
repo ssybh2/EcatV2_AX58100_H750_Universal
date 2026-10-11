@@ -10,6 +10,7 @@ set(PROJECT_SOURCES
         Application/Task/adc.cpp
         Application/Task/dshot.cpp
         Application/Task/dshot_rpm.cpp
+        Application/dshot_rpm_lab.cpp
         Application/Task/lk_motor.cpp
         Application/Task/pmu_uavcan.cpp
         Application/Task/pwm_external.cpp
