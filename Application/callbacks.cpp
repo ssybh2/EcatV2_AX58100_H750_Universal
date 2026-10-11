@@ -171,7 +171,11 @@ void dshot_dma_tc_callback(DMA_HandleTypeDef *hdma) {
     }
 
     for (const std::shared_ptr<runnable_conf> &conf: *get_run_confs()) {
-        if (conf->runnable->task_type == TaskType::DSHOT) {
+        if (conf->runnable->task_type == TaskType::DSHOT
+#ifdef AIM_DSHOT_RPM_LAB_RX
+            || conf->runnable->task_type == TaskType::DSHOT300_BIDIR
+#endif
+        ) {
             static_cast<pwm::DSHOT600 *>(conf->runnable.get())->on_packet_sent(hdma); // NOLINT
         }
     }
