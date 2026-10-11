@@ -30,6 +30,29 @@ The AX58100 carrier exposes the signals at headers **J18** (TIM2) and **J17** (T
   - `0x0FFF` + valid bit = stopped rotor (0 eRPM).
   - `valid_mask==0` MUST NOT be interpreted as stopped rotors.
 
+## Pin-mux / DMA resources confirmed from firmware
+
+Cross-checked `Core/Src/tim.c` and `Core/Src/dma.c`:
+
+| Group | Capture-capable timer | Pin AF | Existing DMA |
+| --- | --- | --- | --- |
+| TIM2 CH1/2/3/4 | TIM2 (32-bit) | PA0/1/2/3, AF1 | DMA1 Stream0/1/2/3 |
+| TIM3 CH1/2/3/4 | TIM3 (16-bit) | PA6/7 PB0/1, AF2 | DMA1 Stream4/5/6/7 |
+
+**As shipped, all eight outputs are configured `GPIO_MODE_AF_PP`, `GPIO_NOPULL`.**
+The eight DMA streams are initialized `DMA_MEMORY_TO_PERIPH` for DShot TX.
+That proves there is *no active receive configuration* even though the MCU pins have TIM input capture capability.
+
+A bidirectional implementation must explicitly provide and validate:
+- non-contentious idle-high wire electrical configuration (typically open-drain output plus suitable pull-up), accounting for connector ESD capacitance and ESC input characteristics;
+- inverted DShot TX waveform and inverted TX CRC (see `prepare_bidir_command()`, protocol helper only);
+- TIM channel / GPIO turnaround and peripheral-to-memory DMA edge capture; potentially reuse TX DMA streams only when TX is complete, with careful exclusive ownership;
+- 750 kbit/s receive bit period (1.333 us) and approximately 30 us turnaround; prove timing and edge jitter with a logic analyzer;
+- D-Cache coherency and buffer memory placement for STM32H7 DMA;
+- a receiver completion callback invoking the cache only after GCR+CRC validation.
+
+The protocol host tests and firmware/task code do **not** establish that the timing-sensitive hardware receiver works.
+
 ## **Not yet implemented: hardware receiver**
 
 The receive side needs real GPIO/timer/DMA work and **must not be enabled before oscilloscope validation**:
