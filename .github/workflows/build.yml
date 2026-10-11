@@ -43,7 +43,14 @@ jobs:
             -B ${{ github.workspace }}/build/Lab
           cmake --build ${{ github.workspace }}/build/Lab \
             --target EcatV2_AX58100_H750_Universal
-          echo "DO NOT FLASH: lab variant is NOT hardware-validated"
+          echo "LAB ONLY - do not fly - hardware receive timing is NOT validated"
+
+      - name: Upload opt-in DShot300 bench ELF (unverified hardware)
+        if: github.ref_name == 'feature/dshot300-bidir-rpm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dshot300-bidir-LAB-UNVERIFIED-no-propellers
+          path: ${{ github.workspace }}/build/Lab/EcatV2_AX58100_H750_Universal.elf
 
       - name: Upload ELF artifact
         uses: actions/upload-artifact@v4
