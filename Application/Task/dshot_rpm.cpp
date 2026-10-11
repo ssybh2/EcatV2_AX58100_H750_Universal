@@ -46,12 +46,12 @@ namespace aim::ecat::task::pwm {
 
         bool accept_captured_edges(const uint8_t dshot_id, const uint8_t channel,
                                    const uint32_t *edges, const std::size_t edge_count,
-                                   const uint32_t ticks_per_bit, const uint32_t timestamp_ms) {
+                                   const uint32_t ticks_per_bit, const uint32_t timestamp_ms, const uint32_t timer_mask) {
             if (dshot_id < 1 || dshot_id > 2 || channel >= 4) {
                 return false;
             }
             uint16_t payload = 0;
-            if (!dshot_rpm::decode_edge_timestamps(edges, edge_count, ticks_per_bit, payload)) {
+            if (!dshot_rpm::decode_edge_timestamps(edges, edge_count, ticks_per_bit, payload, timer_mask)) {
                 return false;
             }
             // The checksum was already verified by the edge decoder.
