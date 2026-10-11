@@ -55,7 +55,8 @@ timer input-capture DMA design with STM32H7 cache coherency.
 
 ```bash
 # Production-compatible default: task 4 remains DShot600 and task 17
-# is unavailable. This is the only ELF uploaded by GitHub Actions.
+# is unavailable. GitHub Actions uploads this default ELF independently of a clearly
+# labelled, bench-only experimental ELF. Neither is a hardware acceptance.
 cmake --preset Release -B build/Release -DAIM_DSHOT_RPM_LAB_RX=OFF
 cmake --build build/Release --target EcatV2_AX58100_H750_Universal
 
