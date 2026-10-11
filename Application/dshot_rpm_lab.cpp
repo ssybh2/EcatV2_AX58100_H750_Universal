@@ -148,6 +148,10 @@ void finish_capture() {
 void shutdown() {
     restore_transmit_pins();
 }
+
+void record_exti_edge(const uint32_t cycle, const bool high) {
+    on_edge(cycle, high);
+}
 } // namespace aim::ecat::dshot_rpm::lab
 
 extern "C" void EXTI0_IRQHandler(void) {
