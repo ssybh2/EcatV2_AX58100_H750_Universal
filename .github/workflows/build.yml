@@ -34,6 +34,17 @@ jobs:
           cmake --build ${{ github.workspace }}/build/Release \
             --target EcatV2_AX58100_H750_Universal
 
+      - name: Compile opt-in TIM2 bench receiver (compile-only, unverified)
+        if: github.ref_name == 'feature/dshot600-rpm-rx-prototype'
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Release --preset Release \
+            -DAIM_DSHOT_RPM_LAB_RX=ON \
+            -S ${{ github.workspace }} \
+            -B ${{ github.workspace }}/build/Lab
+          cmake --build ${{ github.workspace }}/build/Lab \
+            --target EcatV2_AX58100_H750_Universal
+          echo "DO NOT FLASH: lab variant is NOT hardware-validated"
+
       - name: Upload ELF artifact
         uses: actions/upload-artifact@v4
         with:
