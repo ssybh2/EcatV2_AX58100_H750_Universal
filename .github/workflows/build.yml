@@ -2,7 +2,7 @@ name: Build Firmware
 
 on:
   push:
-    branches: [ "main", "feature/dshot600-esc-rpm-telemetry", "feature/dshot600-rpm-rx-prototype" ]
+    branches: [ "main", "feature/dshot600-esc-rpm-telemetry", "feature/dshot600-rpm-rx-prototype", "feature/dshot300-bidir-rpm" ]
   pull_request:
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
             --target EcatV2_AX58100_H750_Universal
 
       - name: Compile opt-in TIM2 bench receiver (compile-only, unverified)
-        if: github.ref_name == 'feature/dshot600-rpm-rx-prototype'
+        if: github.ref_name == 'feature/dshot600-rpm-rx-prototype' || github.ref_name == 'feature/dshot300-bidir-rpm'
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release --preset Release \
             -DAIM_DSHOT_RPM_LAB_RX=ON \
