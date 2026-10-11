@@ -60,7 +60,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         ${PROJECT_INCLUDES}
 )
 
-option(AIM_DSHOT_RPM_LAB_RX \"Unsafe experimental DShot600 single-channel hardware RX (bench only)\" OFF)
+option(AIM_DSHOT_RPM_LAB_RX \"Unsafe experimental DShot600 single-channel hardware RX bench only\" OFF)
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
