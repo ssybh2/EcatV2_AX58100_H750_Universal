@@ -22,3 +22,6 @@ jobs:
           g++ -std=c++17 -O2 -Wall -Wextra -Werror -IApplication \
             tests/dshot_rpm_edge_decode_test.cpp -o /tmp/dshot_rpm_edge_test
           /tmp/dshot_rpm_edge_test
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -IApplication \
+            tests/dshot_rpm_tx_test.cpp -o /tmp/dshot_rpm_tx_test
+          /tmp/dshot_rpm_tx_test
