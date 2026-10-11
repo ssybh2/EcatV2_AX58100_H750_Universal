@@ -1,8 +1,9 @@
 // Optional 40-byte read-only DShot300 LAB diagnostics.
 // Only compiled for -DAIM_DSHOT_RPM_LAB_RX=ON.
 // No change to legacy type 4 command or type 16 RPM PDO.
-#include "task_defs.hpp"
 #include "buffer_utils.hpp"
+#include "peripheral_utils.hpp"
+#include "task_defs.hpp"
 #include "dshot_rpm_lab.hpp"
 
 #ifdef AIM_DSHOT_RPM_LAB_RX
