@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "buffer_utils.hpp"
+#include "peripheral_utils.hpp"
 #include "dshot_rpm_protocol.hpp"
 #include "dshot_rpm_capture_api.hpp"
 #include "task_defs.hpp"
