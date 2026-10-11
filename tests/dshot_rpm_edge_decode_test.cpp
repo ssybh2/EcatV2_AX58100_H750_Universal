@@ -78,6 +78,13 @@ int main() {
     const auto good = make_edges(encode_reply(0x9F4), 1024);
     assert(decode_edge_timestamps(good.edges.data(), good.length, 16, unused));
     assert(unused == 0x9F4);
+    // TIM3 has a 16-bit capture counter. Emulate 0xFFFF -> 0x0000 wrap.
+    auto tim3 = make_edges(encode_reply(0x9F4), 0xFFF0, 16, 2);
+    for (std::size_t i = 0; i < tim3.length; ++i) {
+        tim3.edges[i] &= 0xFFFFU;
+    }
+    assert(decode_edge_timestamps(tim3.edges.data(), tim3.length, 16, unused, 0xFFFFU));
+    assert(unused == 0x9F4);
     assert(!decode_edge_timestamps(good.edges.data(), good.length, 0, unused));
     auto bad = good;
     bad.edges[1] = bad.edges[0] + 1; // spurious edge / bouncing
