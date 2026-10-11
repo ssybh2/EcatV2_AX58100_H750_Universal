@@ -1,4 +1,4 @@
-// Experimental one-channel bidirectional DShot600 receiver for STM32H750.
+// Experimental one-channel bidirectional DShot300 receiver for STM32H750.
 // THIS CODE MUST NOT BE USED FOR FLIGHT. It is not hardware verified.
 // Compile only with -DAIM_DSHOT_RPM_LAB_RX=ON on a propeller-free bench.
 // Preserves the default build byte-for-byte outside this opt-in compilation.
@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include "dshot_rpm_capture_api.hpp"
+#include "dshot_rpm_tx.hpp"
 
 extern "C" {
 #include "tim.h"
@@ -120,8 +121,9 @@ void on_tx_dma_finished(TIM_HandleTypeDef *htim, DMA_HandleTypeDef *hdma) {
     dma_finished = 0;
 
     // The last DMA completion can precede the end of the final PWM cell.
-    // Give the timer >2 complete bit cells (DShot600 bit ~1.67us) before
-    // releasing the pins, still well ahead of the ESC ~30us response.
+    // Wait long enough for the DMA tail cells to finish. DShot300 has
+    // 3.33 us per bit, so a 5 us turnaround needs oscilloscope verification.
+    // This is an EXTI proof of concept, not a production timing guarantee.
     const uint32_t start = DWT->CYCCNT;
     const uint32_t delay_cycles = (SystemCoreClock / 1000000U) * 5U;
     while (static_cast<uint32_t>(DWT->CYCCNT - start) < delay_cycles) {}
@@ -138,7 +140,8 @@ void finish_capture() {
         for (uint8_t i = 0; i < count; ++i) {
             snapshot[i] = edges[i];
         }
-        const uint32_t bit_ticks = (SystemCoreClock + 375000U) / 750000U;
+        const uint32_t bit_ticks = (SystemCoreClock + (dshot_rpm::reply_bitrate(dshot_rpm::Speed::DSHOT300) / 2U)) /
+            dshot_rpm::reply_bitrate(dshot_rpm::Speed::DSHOT300);
         task::pwm::dshot_rpm_cache::accept_captured_edges(
             2, 0, snapshot, count, bit_ticks, HAL_GetTick(), 0xFFFFFFFFUL);
     }
