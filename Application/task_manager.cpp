@@ -97,6 +97,12 @@ namespace aim::ecat::task {
                     );
                     break;
                 }
+                case static_cast<uint8_t>(TaskType::DSHOT_RPM): {
+                    conf->runnable = std::make_unique<pwm::DSHOT_RPM>(
+                        buffer::get_buffer(buffer::Type::ECAT_ARGS)
+                    );
+                    break;
+                }
                 case static_cast<uint8_t>(TaskType::DJI_MOTOR): {
                     conf->is_can_task.set();
                     conf->runnable = std::make_unique<dji_motor::DJI_MOTOR>(
