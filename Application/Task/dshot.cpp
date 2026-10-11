@@ -27,6 +27,7 @@ namespace aim::ecat::task::pwm {
         switch (buffer->read_uint8(buffer::EndianType::LITTLE)) {
             case 1: {
                 tim_inst_ = &htim3;
+                dshot_id_ = 1;
                 init_peripheral(peripheral::Type::PERIPHERAL_TIM3);
                 init_dshot_dma(TIM3_FREQ);
                 motor1_buffer = buffer::get_buffer(buffer::Type::DSHOT1_MOTOR1)->get_buf_pointer<uint32_t>();
@@ -37,6 +38,7 @@ namespace aim::ecat::task::pwm {
             }
             case 2: {
                 tim_inst_ = &htim2;
+                dshot_id_ = 2;
                 init_peripheral(peripheral::Type::PERIPHERAL_TIM2);
                 init_dshot_dma(TIM2_FREQ);
                 motor1_buffer = buffer::get_buffer(buffer::Type::DSHOT2_MOTOR1)->get_buf_pointer<uint32_t>();
@@ -63,6 +65,11 @@ namespace aim::ecat::task::pwm {
     }
 
     void DSHOT600::read_from_master(buffer::Buffer *master_to_slave_buf) {
+#ifdef AIM_DSHOT_RPM_LAB_RX
+        if (dshot_id_ == 2) {
+            dshot_rpm::lab::finish_capture();
+        }
+#endif
         if (in_protection_.get()) {
             command_.channel1 = init_value_;
             command_.channel2 = init_value_;
@@ -79,6 +86,11 @@ namespace aim::ecat::task::pwm {
     }
 
     void DSHOT600::on_connection_lost() {
+#ifdef AIM_DSHOT_RPM_LAB_RX
+        if (dshot_id_ == 2) {
+            dshot_rpm::lab::finish_capture();
+        }
+#endif
         if (connection_lost_action_ == ConnectionLostAction::RESET_TO_DEFAULT) {
             in_protection_.set();
             command_.channel1 = init_value_;
@@ -93,11 +105,25 @@ namespace aim::ecat::task::pwm {
         in_protection_.clear();
     }
 
-    void DSHOT600::on_packet_sent() const {
+    void DSHOT600::on_packet_sent(DMA_HandleTypeDef *hdma) const {
+#ifdef AIM_DSHOT_RPM_LAB_RX
+        if (dshot_id_ == 2) {
+            if (hdma->Parent == tim_inst_) {
+                dshot_rpm::lab::on_tx_dma_finished(tim_inst_, hdma);
+            }
+            // No recursive TX during the ~30us ESC turnaround.
+            return;
+        }
+#endif
         send_signal();
     }
 
     void DSHOT600::exit() {
+#ifdef AIM_DSHOT_RPM_LAB_RX
+        if (dshot_id_ == 2) {
+            dshot_rpm::lab::shutdown();
+        }
+#endif
         __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
         __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
         __HAL_TIM_DISABLE_DMA(tim_inst_, TIM_DMA_CC1);
