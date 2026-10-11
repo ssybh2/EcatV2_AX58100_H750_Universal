@@ -113,11 +113,14 @@ namespace aim::ecat::task::pwm {
     }
 
     void DSHOT600::on_packet_sent(DMA_HandleTypeDef *hdma) const {
+        // A second DShot instance may run on the other timer. Never let
+        // TIM2 DMA completion trigger TIM3 TX (or the reverse).
+        if (hdma == nullptr || hdma->Parent != tim_inst_) {
+            return;
+        }
 #ifdef AIM_DSHOT_RPM_LAB_RX
         if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
-            if (hdma->Parent == tim_inst_) {
-                dshot_rpm::lab::on_tx_dma_finished(tim_inst_, hdma);
-            }
+            dshot_rpm::lab::on_tx_dma_finished(tim_inst_, hdma);
             // Do not send recursively while the ESC drives the line.
             return;
         }
