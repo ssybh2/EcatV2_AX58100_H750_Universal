@@ -14,6 +14,10 @@
 #include "thread_safe_utils.hpp"
 #include "crc_utils.hpp"
 #include "board_config.h"
+#ifdef AIM_DSHOT_RPM_LAB_RX
+#include "dshot_rpm_lab.hpp"
+#include "dshot_rpm_tx.hpp"
+#endif
 
 namespace aim::ecat::task {
     using namespace utils::thread_safety;
@@ -661,6 +665,7 @@ namespace aim::ecat::task {
             TIMSettingPair setting_pair_{};
             uint16_t expected_period_{};
             uint16_t init_value_{};
+            uint8_t dshot_id_{};
 
             ThreadSafeFlag in_protection_{false};
 
@@ -673,6 +678,11 @@ namespace aim::ecat::task {
             }
 
             void send_signal() const {
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                if (dshot_id_ == 2) {
+                    dshot_rpm::lab::begin_transmission();
+                }
+#endif
                 __HAL_TIM_SET_COMPARE(tim_inst_, TIM_CHANNEL_1, command_.channel1);
                 __HAL_TIM_SET_COMPARE(tim_inst_, TIM_CHANNEL_2, command_.channel2);
                 __HAL_TIM_SET_COMPARE(tim_inst_, TIM_CHANNEL_3, command_.channel3);
@@ -798,7 +808,7 @@ namespace aim::ecat::task {
 
             void exit() override;
 
-            void on_packet_sent() const;
+            void on_packet_sent(DMA_HandleTypeDef *hdma) const;
 
             void on_connection_lost() override;
 
@@ -826,6 +836,11 @@ namespace aim::ecat::task {
                 tim_inst_->hdma[TIM_DMA_ID_CC2]->XferCpltCallback = dshot_dma_tc_callback;
                 tim_inst_->hdma[TIM_DMA_ID_CC3]->XferCpltCallback = dshot_dma_tc_callback;
                 tim_inst_->hdma[TIM_DMA_ID_CC4]->XferCpltCallback = dshot_dma_tc_callback;
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                if (dshot_id_ == 2) {
+                    dshot_rpm::lab::configure_pwm2(tim_inst_);
+                }
+#endif
             }
 
             void send_signal() const {
@@ -842,7 +857,14 @@ namespace aim::ecat::task {
             void send_dma_request(uint32_t *buffer, const uint16_t value, volatile uint32_t *ccr, const uint16_t dma_id,
                                   const uint32_t dma_cc) const {
                 if (HAL_DMA_GetState(tim_inst_->hdma[dma_id]) == HAL_DMA_STATE_READY) {
-                    dshot_prepare_dma_buffer(buffer, value);
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                    if (dshot_id_ == 2) {
+                        dshot_rpm::prepare_bidir_tx_compare(buffer, value);
+                    } else
+#endif
+                    {
+                        dshot_prepare_dma_buffer(buffer, value);
+                    }
                     HAL_DMA_Start_IT(tim_inst_->hdma[dma_id], reinterpret_cast<uint32_t>(buffer),
                                      reinterpret_cast<uint32_t>(ccr), DSHOT_DMA_BUFFER_SIZE);
                     __HAL_TIM_ENABLE_DMA(tim_inst_, dma_cc);
