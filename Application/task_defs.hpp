@@ -40,7 +40,8 @@ namespace aim::ecat::task {
         SUPER_CAP = 13,
         VT13_RC = 14,
         DD_MOTOR = 15,
-        DSHOT_RPM = 16  // read-only PDO, separate from legacy DSHOT TX
+        DSHOT_RPM = 16,  // read-only PDO, separate from legacy DSHOT TX
+        DSHOT300_BIDIR = 17  // opt-in bench-only, original DSHOT=4 remains unchanged
     };
 
     enum class ConnectionLostAction : uint8_t {
@@ -679,7 +680,7 @@ namespace aim::ecat::task {
 
             void send_signal() const {
 #ifdef AIM_DSHOT_RPM_LAB_RX
-                if (dshot_id_ == 2) {
+                if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
                     dshot_rpm::lab::begin_transmission();
                 }
 #endif
@@ -807,7 +808,7 @@ namespace aim::ecat::task {
 
         class DSHOT600 final : public CustomRunnable {
         public:
-            explicit DSHOT600(buffer::Buffer *buffer);
+            explicit DSHOT600(buffer::Buffer *buffer, TaskType type = TaskType::DSHOT);
 
             void read_from_master(buffer::Buffer *master_to_slave_buf) override;
 
@@ -836,14 +837,21 @@ namespace aim::ecat::task {
             void init_dshot_dma(const uint32_t tim_freq) const {
                 const uint16_t dshot_psc = lrintf(static_cast<float>(tim_freq) / DSHOT600_FREQ + 0.01f) - 1;
                 __HAL_TIM_SET_PRESCALER(tim_inst_, dshot_psc);
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                // Legacy DShot600 task retains its original ARR=20.
+                // The new type 17 uses 40 timer ticks at 12MHz for DShot300.
+                __HAL_TIM_SET_AUTORELOAD(tim_inst_,
+                    task_type == TaskType::DSHOT300_BIDIR ? 39U : MOTOR_BITLENGTH);
+#else
                 __HAL_TIM_SET_AUTORELOAD(tim_inst_, MOTOR_BITLENGTH);
+#endif
 
                 tim_inst_->hdma[TIM_DMA_ID_CC1]->XferCpltCallback = dshot_dma_tc_callback;
                 tim_inst_->hdma[TIM_DMA_ID_CC2]->XferCpltCallback = dshot_dma_tc_callback;
                 tim_inst_->hdma[TIM_DMA_ID_CC3]->XferCpltCallback = dshot_dma_tc_callback;
                 tim_inst_->hdma[TIM_DMA_ID_CC4]->XferCpltCallback = dshot_dma_tc_callback;
 #ifdef AIM_DSHOT_RPM_LAB_RX
-                if (dshot_id_ == 2) {
+                if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
                     dshot_rpm::lab::configure_pwm2(tim_inst_);
                 }
 #endif
@@ -864,8 +872,8 @@ namespace aim::ecat::task {
                                   const uint32_t dma_cc) const {
                 if (HAL_DMA_GetState(tim_inst_->hdma[dma_id]) == HAL_DMA_STATE_READY) {
 #ifdef AIM_DSHOT_RPM_LAB_RX
-                    if (dshot_id_ == 2) {
-                        dshot_rpm::prepare_bidir_tx_compare(buffer, value);
+                    if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
+                        dshot_rpm::prepare_bidir_tx_compare(buffer, value, dshot_rpm::Speed::DSHOT300);
                     } else
 #endif
                     {
