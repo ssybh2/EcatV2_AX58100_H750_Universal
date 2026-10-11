@@ -1,0 +1,20 @@
+name: DShot eRPM host protocol tests
+on:
+  push:
+    branches:
+      - feature/dshot600-esc-rpm-telemetry
+    paths:
+      - "Application/dshot_rpm_protocol.hpp"
+      - "tests/dshot_rpm_protocol_test.cpp"
+      - ".github/workflows/dshot-rpm-protocol-test.yml"
+  workflow_dispatch:
+
+jobs:
+  host-gcr-codec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and test GCR codec
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -O2 tests/dshot_rpm_protocol_test.cpp -o /tmp/test_dshot_rpm
+          /tmp/test_dshot_rpm
