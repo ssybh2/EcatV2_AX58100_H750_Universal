@@ -7,6 +7,7 @@
 #ifdef AIM_DSHOT_RPM_LAB_RX
 
 #include <cstdint>
+#include <atomic>
 #include "dshot_rpm_capture_api.hpp"
 #include "dshot_rpm_tx.hpp"
 
@@ -28,6 +29,26 @@ volatile bool overflow = false;
 volatile uint8_t edge_count = 0;
 volatile uint8_t dma_finished = 0;
 volatile uint32_t edges[kCapacity] = {};
+
+// Counters increment only on completed TX callback or capture finalization.
+// Individual EXTI edges only update the original fixed-size edge array.
+struct DiagnosticCounters {
+    std::atomic<uint32_t> tx_complete{0};
+    std::atomic<uint32_t> capture_calls{0};
+    std::atomic<uint32_t> no_start_edge{0};
+    std::atomic<uint32_t> edge_overflow{0};
+    std::atomic<uint32_t> decode_ok{0};
+    std::atomic<uint32_t> decode_fail{0};
+    std::atomic<uint32_t> total_edges{0};
+    std::atomic<uint32_t> last_edge_count{0};
+    std::atomic<uint32_t> last_ok_ms{0};
+    std::atomic<uint32_t> no_capture_window{0};
+};
+DiagnosticCounters diag{};
+std::atomic<bool> had_ok{false};
+inline void inc(std::atomic<uint32_t> &counter) {
+    counter.fetch_add(1, std::memory_order_relaxed);
+}
 
 void enable_cycle_counter() {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -119,6 +140,7 @@ void on_tx_dma_finished(TIM_HandleTypeDef *htim, DMA_HandleTypeDef *hdma) {
         return;
     }
     dma_finished = 0;
+    inc(diag.tx_complete);
 
     // The last DMA completion can precede the end of the final PWM cell.
     // Wait long enough for the DMA tail cells to finish. DShot300 has
@@ -133,23 +155,56 @@ void on_tx_dma_finished(TIM_HandleTypeDef *htim, DMA_HandleTypeDef *hdma) {
 void finish_capture() {
     // Called at the next EtherCAT command, nominally ~1ms later.
     HAL_NVIC_DisableIRQ(EXTI0_IRQn);
+    const bool capture_armed = armed;
     armed = false;
-    if (first_falling && !overflow && edge_count != 0) {
+    inc(diag.capture_calls);
+    const uint32_t count = edge_count;
+    diag.last_edge_count.store(count, std::memory_order_relaxed);
+    diag.total_edges.fetch_add(count, std::memory_order_relaxed);
+    if (!capture_armed) {
+        inc(diag.no_capture_window);
+    } else if (overflow) {
+        inc(diag.edge_overflow);
+    } else if (!first_falling || count == 0) {
+        inc(diag.no_start_edge);
+    } else {
         uint32_t snapshot[kCapacity]{};
-        const uint8_t count = edge_count;
-        for (uint8_t i = 0; i < count; ++i) {
+        for (uint32_t i = 0; i < count; ++i) {
             snapshot[i] = edges[i];
         }
-        const uint32_t bit_ticks = (SystemCoreClock + (dshot_rpm::reply_bitrate(dshot_rpm::Speed::DSHOT300) / 2U)) /
-            dshot_rpm::reply_bitrate(dshot_rpm::Speed::DSHOT300);
-        task::pwm::dshot_rpm_cache::accept_captured_edges(
-            2, 0, snapshot, count, bit_ticks, HAL_GetTick(), 0xFFFFFFFFUL);
+        const uint32_t bitrate = dshot_rpm::reply_bitrate(dshot_rpm::Speed::DSHOT300);
+        const uint32_t bit_ticks = (SystemCoreClock + bitrate / 2U) / bitrate;
+        const uint32_t now_ms = HAL_GetTick();
+        if (task::pwm::dshot_rpm_cache::accept_captured_edges(
+                2, 0, snapshot, count, bit_ticks, now_ms, 0xFFFFFFFFUL)) {
+            inc(diag.decode_ok);
+            diag.last_ok_ms.store(now_ms, std::memory_order_relaxed);
+            had_ok.store(true, std::memory_order_release);
+        } else {
+            inc(diag.decode_fail);
+        }
     }
     restore_transmit_pins();
 }
 
 void shutdown() {
     restore_transmit_pins();
+}
+
+void read_diagnostics(uint32_t out[10], const uint32_t now_ms) {
+    if (out == nullptr) { return; }
+    out[0] = diag.tx_complete.load(std::memory_order_relaxed);
+    out[1] = diag.capture_calls.load(std::memory_order_relaxed);
+    out[2] = diag.no_start_edge.load(std::memory_order_relaxed);
+    out[3] = diag.edge_overflow.load(std::memory_order_relaxed);
+    out[4] = diag.decode_ok.load(std::memory_order_relaxed);
+    out[5] = diag.decode_fail.load(std::memory_order_relaxed);
+    out[6] = diag.total_edges.load(std::memory_order_relaxed);
+    out[7] = diag.last_edge_count.load(std::memory_order_relaxed);
+    out[8] = had_ok.load(std::memory_order_acquire)
+        ? static_cast<uint32_t>(now_ms - diag.last_ok_ms.load(std::memory_order_relaxed))
+        : 0xFFFFFFFFUL;
+    out[9] = diag.no_capture_window.load(std::memory_order_relaxed);
 }
 
 void record_exti_edge(const uint32_t cycle, const bool high) {
