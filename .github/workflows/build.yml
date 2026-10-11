@@ -2,7 +2,7 @@ name: Build Firmware
 
 on:
   push:
-    branches: [ "main", "feature/dshot600-esc-rpm-telemetry" ]
+    branches: [ "main", "feature/dshot600-esc-rpm-telemetry", "feature/dshot600-rpm-rx-prototype" ]
   pull_request:
 
 jobs:
