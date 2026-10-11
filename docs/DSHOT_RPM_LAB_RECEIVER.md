@@ -1,3 +1,7 @@
+> Historical DShot600 lab design. For the user-tested DShot300 implementation,
+> see [DSHOT300_BIDIR_INTEGRATION.md](./DSHOT300_BIDIR_INTEGRATION.md).
+> Only the new branch's *separate bench ELF* contains experimental RX.
+
 # H750 DShot600 RPM: opt-in one-channel hardware receive prototype
 
 **STATUS: EXPERIMENTAL / NOT VALIDATED ON ESC HARDWARE / DO NOT FLY.**
