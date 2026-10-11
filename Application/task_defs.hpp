@@ -683,6 +683,11 @@ namespace aim::ecat::task {
                     dshot_rpm::lab::begin_transmission();
                 }
 #endif
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                if (dshot_id_ == 2) {
+                    dshot_rpm::lab::begin_transmission();
+                }
+#endif
                 __HAL_TIM_SET_COMPARE(tim_inst_, TIM_CHANNEL_1, command_.channel1);
                 __HAL_TIM_SET_COMPARE(tim_inst_, TIM_CHANNEL_2, command_.channel2);
                 __HAL_TIM_SET_COMPARE(tim_inst_, TIM_CHANNEL_3, command_.channel3);
@@ -824,6 +829,7 @@ namespace aim::ecat::task {
             uint32_t *motor3_buffer{};
             uint32_t *motor4_buffer{};
             uint16_t init_value_{};
+            uint8_t dshot_id_{0};
 
             ThreadSafeFlag in_protection_{false};
 
