@@ -10,6 +10,17 @@ namespace aim::ecat::dshot_rpm {
     constexpr uint16_t INVALID_PAYLOAD = 0xFFFF;
     constexpr uint16_t STOPPED_PAYLOAD = 0x0FFF;
 
+    // Build a 16-bit FC->ESC bidirectional DShot command using the
+    // inverted checksum. This function only builds bytes: enabling bDShot
+    // also requires inverted electrical levels, idle-high wiring and RX.
+    // The separate telemetry-request bit remains zero (single-wire bDShot
+    // eRPM feedback is automatic).
+    inline uint16_t prepare_bidir_command(const uint16_t throttle) {
+        const uint16_t data = static_cast<uint16_t>((throttle & 0x07FFU) << 1);
+        const uint16_t crc = static_cast<uint16_t>(~(data ^ (data >> 4) ^ (data >> 8)) & 0x0FU);
+        return static_cast<uint16_t>((data << 4) | crc);
+    }
+
     // Invert the 4b/5b GCR table. Unmapped symbols are invalid.
     inline int gcr_nibble(const uint8_t code) {
         switch (code) {
