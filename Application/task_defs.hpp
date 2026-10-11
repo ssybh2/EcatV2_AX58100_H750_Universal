@@ -35,7 +35,8 @@ namespace aim::ecat::task {
         DM_MOTOR = 12,
         SUPER_CAP = 13,
         VT13_RC = 14,
-        DD_MOTOR = 15
+        DD_MOTOR = 15,
+        DSHOT_RPM = 16  // read-only PDO, separate from legacy DSHOT TX
     };
 
     enum class ConnectionLostAction : uint8_t {
@@ -779,6 +780,15 @@ namespace aim::ecat::task {
             motor_dma_buffer[16] = 0;
             motor_dma_buffer[17] = 0;
         }
+
+        // A separate read-only telemetry task; legacy DSHOT command layout is unchanged.
+        class DSHOT_RPM final : public CustomRunnable {
+        public:
+            explicit DSHOT_RPM(buffer::Buffer *buffer);
+            void write_to_master(buffer::Buffer *slave_to_master_buf) override;
+        private:
+            uint8_t dshot_id_{0};
+        };
 
         class DSHOT600 final : public CustomRunnable {
         public:
