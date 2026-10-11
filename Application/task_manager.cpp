@@ -105,6 +105,14 @@ namespace aim::ecat::task {
                     break;
                 }
 #endif
+#ifdef AIM_DSHOT_RPM_LAB_RX
+                case static_cast<uint8_t>(TaskType::DSHOT_RPM_DIAG): {
+                    conf->runnable = std::make_unique<pwm::DSHOT_RPM_DIAG>(
+                        buffer::get_buffer(buffer::Type::ECAT_ARGS)
+                    );
+                    break;
+                }
+#endif
                 case static_cast<uint8_t>(TaskType::DSHOT_RPM): {
                     conf->runnable = std::make_unique<pwm::DSHOT_RPM>(
                         buffer::get_buffer(buffer::Type::ECAT_ARGS)
