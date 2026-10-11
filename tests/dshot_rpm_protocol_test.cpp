@@ -31,6 +31,10 @@ static uint32_t encode_independent(const uint16_t payload, const int force_crc =
 }
 
 int main() {
+    // Public Betaflight example: 1046 DShot -> 0x82C9 with inverted CRC.
+    assert(prepare_bidir_command(1046) == 0x82C9);
+    assert(prepare_bidir_command(0) == 0x000F);
+    assert(prepare_bidir_command(2047) == 0xFFE0);
     for (uint16_t data : {uint16_t(0xFFF), uint16_t(0x001), uint16_t(0x1FF),
                           uint16_t(0x810), uint16_t(0x123), uint16_t(0xF0A)}) {
         uint16_t decoded = 0;
