@@ -6,6 +6,7 @@
 #define AIM_DSHOT_RPM_LAB_HPP
 
 #include "stm32h7xx_hal.h"
+#include <cstdint>
 
 namespace aim::ecat::dshot_rpm::lab {
 #ifdef AIM_DSHOT_RPM_LAB_RX
@@ -14,6 +15,8 @@ namespace aim::ecat::dshot_rpm::lab {
     void on_tx_dma_finished(TIM_HandleTypeDef *htim, DMA_HandleTypeDef *hdma);
     void finish_capture();
     void shutdown();
+    // Ten uint32 diagnostic values; see docs/DSHOT300_RX_DIAGNOSTICS.md.
+    void read_diagnostics(uint32_t out[10], uint32_t now_ms);
 #endif
 }
 
