@@ -5,6 +5,7 @@ on:
       - feature/dshot600-esc-rpm-telemetry
       - feature/dshot600-rpm-rx-prototype
       - feature/dshot300-bidir-rpm
+      - feature/dshot300-rpm-diagnostics
   pull_request:
     paths:
       - 'Application/dshot_rpm_protocol.hpp'
