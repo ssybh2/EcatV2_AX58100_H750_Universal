@@ -1,4 +1,4 @@
-// Host-only synthetic timer-edge test for bidirectional DShot600 eRPM RX.
+// Host-only synthetic timer-edge test for bidirectional DShot300 and DShot600 eRPM RX.
 // The STM32 TIM/DMA driver is deliberately not assumed to be operational.
 #include <cassert>
 #include <cstddef>
@@ -78,6 +78,11 @@ int main() {
     const auto good = make_edges(encode_reply(0x9F4), 1024);
     assert(decode_edge_timestamps(good.edges.data(), good.length, 16, unused));
     assert(unused == 0x9F4);
+    // DShot300 ESC replies use 375 kbit/s; at 12 MHz that is 32 ticks/bit.
+    const auto d300 = make_edges(encode_reply(0x9F4), 4096, 32, 3);
+    assert(decode_edge_timestamps(d300.edges.data(), d300.length, 32, unused));
+    assert(unused == 0x9F4);
+    assert(!decode_edge_timestamps(d300.edges.data(), d300.length, 16, unused));
     // TIM3 has a 16-bit capture counter. Emulate 0xFFFF -> 0x0000 wrap.
     auto tim3 = make_edges(encode_reply(0x9F4), 0xFFF0, 16, 2);
     for (std::size_t i = 0; i < tim3.length; ++i) {
