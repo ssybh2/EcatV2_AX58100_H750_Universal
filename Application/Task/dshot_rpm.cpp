@@ -7,6 +7,7 @@
 #include "buffer_utils.hpp"
 #include "peripheral_utils.hpp"
 #include "dshot_rpm_protocol.hpp"
+#include "dshot_rpm_edge_decode.hpp"
 #include "dshot_rpm_capture_api.hpp"
 #include "task_defs.hpp"
 
@@ -36,6 +37,24 @@ namespace aim::ecat::task::pwm {
             if (!dshot_rpm::decode_21bit(raw21, payload)) {
                 return false;
             }
+            Channel &slot = samples[dshot_id - 1][channel];
+            slot.payload.store(payload, std::memory_order_relaxed);
+            slot.timestamp_ms.store(timestamp_ms, std::memory_order_relaxed);
+            slot.received.store(true, std::memory_order_release);
+            return true;
+        }
+
+        bool accept_captured_edges(const uint8_t dshot_id, const uint8_t channel,
+                                   const uint32_t *edges, const std::size_t edge_count,
+                                   const uint32_t ticks_per_bit, const uint32_t timestamp_ms) {
+            if (dshot_id < 1 || dshot_id > 2 || channel >= 4) {
+                return false;
+            }
+            uint16_t payload = 0;
+            if (!dshot_rpm::decode_edge_timestamps(edges, edge_count, ticks_per_bit, payload)) {
+                return false;
+            }
+            // The checksum was already verified by the edge decoder.
             Channel &slot = samples[dshot_id - 1][channel];
             slot.payload.store(payload, std::memory_order_relaxed);
             slot.timestamp_ms.store(timestamp_ms, std::memory_order_relaxed);
