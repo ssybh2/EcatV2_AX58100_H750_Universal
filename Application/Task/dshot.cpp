@@ -10,7 +10,7 @@ extern "C" {
 }
 
 namespace aim::ecat::task::pwm {
-    DSHOT600::DSHOT600(buffer::Buffer *buffer) : CustomRunnable(false, TaskType::DSHOT) {
+    DSHOT600::DSHOT600(buffer::Buffer *buffer, const TaskType type) : CustomRunnable(false, type) {
         switch (buffer->read_uint8(buffer::EndianType::LITTLE)) {
             case 0x01: {
                 connection_lost_action_ = ConnectionLostAction::KEEP_LAST;
@@ -51,6 +51,13 @@ namespace aim::ecat::task::pwm {
             }
         }
 
+#ifdef AIM_DSHOT_RPM_LAB_RX
+        // This prototype captures only TIM2/PA0. Fail closed rather than
+        // silently transmitting normal DShot on an unsupported group.
+        if (type == TaskType::DSHOT300_BIDIR && dshot_id_ != 2) {
+            Error_Handler();
+        }
+#endif
         HAL_TIM_PWM_Start(tim_inst_, TIM_CHANNEL_1);
         HAL_TIM_PWM_Start(tim_inst_, TIM_CHANNEL_2);
         HAL_TIM_PWM_Start(tim_inst_, TIM_CHANNEL_3);
@@ -66,7 +73,7 @@ namespace aim::ecat::task::pwm {
 
     void DSHOT600::read_from_master(buffer::Buffer *master_to_slave_buf) {
 #ifdef AIM_DSHOT_RPM_LAB_RX
-        if (dshot_id_ == 2) {
+        if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
             dshot_rpm::lab::finish_capture();
         }
 #endif
@@ -87,7 +94,7 @@ namespace aim::ecat::task::pwm {
 
     void DSHOT600::on_connection_lost() {
 #ifdef AIM_DSHOT_RPM_LAB_RX
-        if (dshot_id_ == 2) {
+        if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
             dshot_rpm::lab::finish_capture();
         }
 #endif
@@ -107,11 +114,11 @@ namespace aim::ecat::task::pwm {
 
     void DSHOT600::on_packet_sent(DMA_HandleTypeDef *hdma) const {
 #ifdef AIM_DSHOT_RPM_LAB_RX
-        if (dshot_id_ == 2) {
+        if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
             if (hdma->Parent == tim_inst_) {
                 dshot_rpm::lab::on_tx_dma_finished(tim_inst_, hdma);
             }
-            // No recursive TX during the ~30us ESC turnaround.
+            // Do not send recursively while the ESC drives the line.
             return;
         }
 #endif
@@ -120,7 +127,7 @@ namespace aim::ecat::task::pwm {
 
     void DSHOT600::exit() {
 #ifdef AIM_DSHOT_RPM_LAB_RX
-        if (dshot_id_ == 2) {
+        if (task_type == TaskType::DSHOT300_BIDIR && dshot_id_ == 2) {
             dshot_rpm::lab::shutdown();
         }
 #endif
