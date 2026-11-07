@@ -33,8 +33,35 @@ jobs:
           cmake --build ${{ github.workspace }}/build/Release \
             --target EcatV2_AX58100_H750_Universal
 
-      - name: Upload ELF artifact
+      - name: Verify PWM timer clock constants
+        run: |
+          grep -q '^#define TIM2_FREQ_VAL 240000000 Application/board_config.h
+          grep -q '^#define TIM3_FREQ_VAL 240000000 Application/board_config.h
+
+      - name: Export BIN and HEX firmware
+        run: |
+          set -euo pipefail
+          BUILD_DIR="${{ github.workspace }}/build/Release"
+          ELF="$BUILD_DIR/EcatV2_AX58100_H750_Universal.elf"
+          arm-none-eabi-objcopy -O binary "$ELF" "$BUILD_DIR/EcatV2_AX58100_H750_Universal.bin"
+          arm-none-eabi-objcopy -O ihex "$ELF" "$BUILD_DIR/EcatV2_AX58100_H750_Universal.hex"
+          arm-none-eabi-size "$ELF"
+          printf 'Git commit: %s\nGit branch: %s\nTimer2/3 clock: 240 MHz\nSource: AIMEtherCAT feature/larget-pdo, with PWM clock correction\n' \
+            "${GITHUB_SHA}" "${GITHUB_REF_NAME}" > "$BUILD_DIR/BUILD_INFO.txt"
+          cd "$BUILD_DIR"
+          sha256sum EcatV2_AX58100_H750_Universal.elf \
+                    EcatV2_AX58100_H750_Universal.hex \
+                    EcatV2_AX58100_H750_Universal.bin > SHA256SUMS.txt
+          ls -lh EcatV2_AX58100_H750_Universal.{elf,hex,bin}
+
+      - name: Upload flashable firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-elf
-          path: ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf
+          name: PWMtest-large-pdo-firmware
+          if-no-files-found: error
+          path: |
+            ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.elf
+            ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.hex
+            ${{ github.workspace }}/build/Release/EcatV2_AX58100_H750_Universal.bin
+            ${{ github.workspace }}/build/Release/BUILD_INFO.txt
+            ${{ github.workspace }}/build/Release/SHA256SUMS.txt
