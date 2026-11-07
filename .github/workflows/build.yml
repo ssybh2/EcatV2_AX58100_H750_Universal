@@ -35,8 +35,8 @@ jobs:
 
       - name: Verify PWM timer clock constants
         run: |
-          grep -q '^#define TIM2_FREQ_VAL 240000000 Application/board_config.h
-          grep -q '^#define TIM3_FREQ_VAL 240000000 Application/board_config.h
+          grep -q '^#define TIM2_FREQ_VAL 240000000$' Application/board_config.h
+          grep -q '^#define TIM3_FREQ_VAL 240000000$' Application/board_config.h
 
       - name: Export BIN and HEX firmware
         run: |
