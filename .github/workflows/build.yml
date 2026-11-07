@@ -43,10 +43,17 @@ jobs:
           set -euo pipefail
           BUILD_DIR="${{ github.workspace }}/build/Release"
           ELF="$BUILD_DIR/EcatV2_AX58100_H750_Universal.elf"
-          arm-none-eabi-objcopy -O binary "$ELF" "$BUILD_DIR/EcatV2_AX58100_H750_Universal.bin"
-          arm-none-eabi-objcopy -O ihex "$ELF" "$BUILD_DIR/EcatV2_AX58100_H750_Universal.hex"
+          arm-none-eabi-objcopy --remove-section=.dma_buffer -O binary "$ELF" "$BUILD_DIR/EcatV2_AX58100_H750_Universal.bin"
+          arm-none-eabi-objcopy --remove-section=.dma_buffer -O ihex "$ELF" "$BUILD_DIR/EcatV2_AX58100_H750_Universal.hex"
+          # The ELF contains a RAM_D2 .dma_buffer at 0x30000000.
+          # Exclude this from flash images; otherwise raw BIN spans ~641 MiB.
+          BIN_SIZE=$(stat -c%s "$BUILD_DIR/EcatV2_AX58100_H750_Universal.bin")
+          if (( BIN_SIZE < 20000 || BIN_SIZE > 131072 )); then
+            echo "Unexpected flash image size: ${BIN_SIZE} bytes" >&2
+            exit 1
+          fi
           arm-none-eabi-size "$ELF"
-          printf 'Git commit: %s\nGit branch: %s\nTimer2/3 clock: 240 MHz\nSource: AIMEtherCAT feature/larget-pdo, with PWM clock correction\n' \
+          printf 'Git commit: %s\nGit branch: %s\nTimer2/3 clock: 240 MHz\nFlash BIN/HEX exclude RAM_D2 .dma_buffer\nSource: AIMEtherCAT feature/larget-pdo, with PWM clock correction\n' \
             "${GITHUB_SHA}" "${GITHUB_REF_NAME}" > "$BUILD_DIR/BUILD_INFO.txt"
           cd "$BUILD_DIR"
           sha256sum EcatV2_AX58100_H750_Universal.elf \
